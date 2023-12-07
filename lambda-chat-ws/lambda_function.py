@@ -1032,6 +1032,7 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
 
 def get_answer_from_conversation(text, conversation, conv_type, connectionId, requestId):
     conversation.prompt = get_prompt_template(text, conv_type)
+    print('PROMPT: ', conversation.prompt)
     try: 
         isTyping(connectionId, requestId)    
         stream = conversation.predict(input=text)
@@ -1137,7 +1138,7 @@ def getResponse(connectionId, jsonBody):
         else:
             memory_chat = ConversationBufferWindowMemory(human_prefix='Human', ai_prefix='Assistant', k=20)
             map_chat[userId] = memory_chat
-            print('memory_chat does not exist. create new one!')        
+            print('memory_chat does not exist. create new one!')
         conversation = ConversationChain(llm=llm, verbose=False, memory=memory_chat)
         
     allowTime = getAllowTime()
