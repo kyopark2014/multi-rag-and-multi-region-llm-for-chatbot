@@ -23,7 +23,6 @@ const projectName = `multi-rag-chatbot`;
 
 const bucketName = `storage-for-${projectName}-${region}`; 
 const kendra_region = "ap-northeast-1"; 
-const rag_method = 'RetrievalPrompt' // RetrievalPrompt, RetrievalQA, ConversationalRetrievalChain
 let deployed_rag_type = 'all';   // all, opensearch, kendra, faiss
 
 const opensearch_account = "admin";
@@ -558,7 +557,6 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
         kendraIndex: kendraIndex,
         roleArn: roleLambdaWebsocket.roleArn,
         debugMessageMode: debugMessageMode,
-        rag_method: rag_method,
         useMultipleUpload: useMultipleUpload,
         numberOfRelevantDocs: numberOfRelevantDocs,
         number_of_LLMs:number_of_LLMs,
@@ -626,21 +624,6 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
 
     // deploy components
     new componentDeployment(scope, `component-deployment-of-${projectName}`, websocketapi.attrApiId)     
-
-    //const wsOriginRequestPolicy = new cloudFront.OriginRequestPolicy(this, `webSocketPolicy`, {
-    //  originRequestPolicyName: "webSocketPolicy",
-    //  comment: `A default WebSocket policy`,
-    //  cookieBehavior: cloudFront.OriginRequestCookieBehavior.none(),
-    //  headerBehavior: cloudFront.OriginRequestHeaderBehavior.allowList(`Sec-WebSocket-Key`, `Sec-WebSocket-Version`, `Sec-WebSocket-Protocol`, `Sec-WebSocket-Accept`),
-    //  queryStringBehavior: cloudFront.OriginRequestQueryStringBehavior.none(),
-    //});
-    
-    // cloudfront setting for api gateway    
-    // distribution.addBehavior("/ws", new origins.HttpOrigin(websocketapi), {
-    //  cachePolicy: cloudFront.CachePolicy.CACHING_DISABLED,
-    //  allowedMethods: cloudFront.AllowedMethods.ALLOW_ALL,  
-    //  viewerProtocolPolicy: cloudFront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-    //});        
   }
 }
 

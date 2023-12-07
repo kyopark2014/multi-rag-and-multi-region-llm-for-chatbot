@@ -201,7 +201,6 @@ for (i=0;i<maxMsgItems;i++) {
 calleeName.textContent = "Chatbot";  
 calleeId.textContent = "AWS";
 
-
 if(langstate=='korean') {
     addNotifyMessage("Amazon Bedrock을 이용하여 채팅을 시작합니다.");
     addReceivedMessage(uuidv4(), "Amazon Bedrock을 이용하여 주셔서 감사합니다. 편안한 대화를 즐기실수 있으며, 파일을 업로드하면 요약을 할 수 있습니다.")
@@ -262,25 +261,8 @@ function onSend(e) {
         addSentMessage(requestId, timestr, message.value);
 
         
-        if(conversationType=='qa-all') {
-            conv_type = 'qa',
-            rag_type = 'all'
-        }
-        else if(conversationType=='qa-kendra') {
-            conv_type = 'qa',
-            rag_type = 'kendra'
-        }
-        else if(conversationType=='qa-opensearch') {
-            conv_type = 'qa',
-            rag_type = 'opensearch'
-        }
-        else if(conversationType=='qa-faiss') {
-            conv_type = 'qa',
-            rag_type = 'faiss'
-        }
-        else {
-            conv_type = conversationType,
-            rag_type = ''
+        if(conversationType=='qa') {
+            conv_type = 'qa'
         }
         
         sendMessage({
@@ -290,7 +272,6 @@ function onSend(e) {
             "type": "text",
             "body": message.value,
             "conv_type": conv_type,
-            "rag_type": rag_type
         })
         
         sentTime.put(requestId, current);
@@ -536,35 +517,14 @@ attachFile.addEventListener('click', function(){
                     var xmlHttp = new XMLHttpRequest();
                     xmlHttp.open("PUT", uploadURL, true);       
 
-                    //let formData = new FormData();
-                    //formData.append("attachFile" , input.files[0]);
-                    //console.log('uploading file info: ', formData.get("attachFile"));
-
                     const blob = new Blob([input.files[0]], { type: contentType });
 
                     xmlHttp.onreadystatechange = function() {
                         if (xmlHttp.readyState == XMLHttpRequest.DONE && xmlHttp.status == 200 ) {
                             console.log(xmlHttp.responseText);
 
-                            if(conversationType=='qa-all') {
-                                conv_type = 'qa',
-                                rag_type = 'all'
-                            }
-                            else if(conversationType=='qa-kendra') {
-                                conv_type = 'qa',
-                                rag_type = 'kendra'
-                            }
-                            else if(conversationType=='qa-opensearch') {
-                                conv_type = 'qa',
-                                rag_type = 'opensearch'
-                            }
-                            else if(conversationType=='qa-faiss') {
-                                conv_type = 'qa',
-                                rag_type = 'faiss'
-                            }
-                            else {
-                                conv_type = conversationType,
-                                rag_type = ''
+                            if(conversationType=='qa') {
+                                conv_type = 'qa'
                             }
                                            
                             // summary for the upload file                            
@@ -575,7 +535,6 @@ attachFile.addEventListener('click', function(){
                                 "type": "document",
                                 "body": filename,
                                 "conv_type": conv_type,
-                                "rag_type": rag_type
                             })
                         }
                         else if(xmlHttp.readyState == XMLHttpRequest.DONE && xmlHttp.status != 200) {
@@ -618,7 +577,6 @@ function getHistory(userId, allowTime) {
                         
             for(let i=0; i<history.length; i++) {
                 if(history[i].type=='text') {                
-                    // let timestr = history[i].request_time.substring(11, 19);
                     let requestId = history[i].request_id;
                     console.log("requestId: ", requestId);
                     let timestr = history[i].request_time;
