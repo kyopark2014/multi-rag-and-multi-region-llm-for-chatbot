@@ -650,8 +650,6 @@ def retrieve_from_kendra(query, top_k):
             relevant_docs = []
             retrieve_docs = []
             for query_result in resp["ResultItems"]:
-                #confidence = query_result["ScoreAttributes"]['ScoreConfidence']
-                #if confidence == 'VERY_HIGH' or confidence == 'HIGH' or confidence == 'MEDIUM': only for "en"
                 retrieve_docs.append(extract_relevant_doc_for_kendra(query_id=query_id, apiType="retrieve", query_result=query_result))
                 # print('retrieve_docs: ', retrieve_docs)
 
@@ -927,28 +925,6 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
             relevant_docs.append(doc_info)
 
     return relevant_docs
-
-from langchain.schema import BaseMessage
-_ROLE_MAP = {"human": "\n\nHuman: ", "ai": "\n\nAssistant: "}
-def _get_chat_history(chat_history):
-    #print('_get_chat_history: ', chat_history)
-    buffer = ""
-    for dialogue_turn in chat_history:
-        if isinstance(dialogue_turn, BaseMessage):
-            role_prefix = _ROLE_MAP.get(dialogue_turn.type, f"{dialogue_turn.type}: ")
-            buffer += f"\n{role_prefix}{dialogue_turn.content}"
-        elif isinstance(dialogue_turn, tuple):
-            human = "\n\nHuman: " + dialogue_turn[0]
-            ai = "\n\nAssistant: " + dialogue_turn[1]
-            buffer += "\n" + "\n".join([human, ai])
-        else:
-            raise ValueError(
-                f"Unsupported chat history format: {type(dialogue_turn)}."
-                f" Full chat history: {chat_history} "
-            )
-    #print('buffer: ', buffer)
-    return buffer
-
 
 def retrieve_process_from_RAG(conn, query, top_k, rag_type):
     relevant_docs = []
@@ -1322,8 +1298,6 @@ def getResponse(connectionId, jsonBody):
                             )
                             isReady = True
                         else: 
-                            #p3 = Process(target=store_document_for_faiss, args=(docs, vectorstore_faiss))
-                            #p3.start(); p3.join()
                             vectorstore_faiss.add_documents(docs)       
                         
                 print('processing time: ', str(time.time() - start_time))
