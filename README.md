@@ -41,190 +41,443 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 
 ## 주요 구성
 
-### Bedrock을 LangChain으로 연결
+### Multi Region LLM을 LangChain으로 연결
 
-현재(2023년 9월) Bedrock의 상용으로 제한없이 AWS Bedrock을 사용할 수 있습니다. [Bedrock](https://python.langchain.com/docs/integrations/providers/bedrock)을 import하여 LangChain로 application을 개발할 수 있습니다. 여기서는 bedrock_region으로 us-east-1을 사용합니다. 
+LangChain의 [Bedrock](https://python.langchain.com/docs/integrations/providers/bedrock)을 import하여 LLM과 application을 연결합니다. 여기서는 LLM Endpoint의 용량을 늘릴수 있도록 여러 Region의 LLM을 사용하고자 하며, 예제에서는 "us-east-1"과, "us-west-2"를 아래와 같이 정의하여 사용합니다. 
 
-아래와 같이 bedrock client를 정의합니다. 서비스이름은 "bedrock-runtime"입니다.
+[cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
+
+```typescript
+const profile_of_LLMs = JSON.stringify([
+  {
+    "bedrock_region": "us-west-2",
+    "model_type": "claude",
+    "model_id": "anthropic.claude-v2:1",
+    "maxOutputTokens": "8196"
+  },
+  {
+    "bedrock_region": "us-east-1",
+    "model_type": "claude",
+    "model_id": "anthropic.claude-v2:1",
+    "maxOutputTokens": "8196"
+  },
+]);
+```
+
+사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 bedrock client를 정의한 후에, LangChain으로 Bedrock과 BedrockEmbeddings를 정의합니다. 
 
 ```python
-import boto3
-from langchain.llms.bedrock import Bedrock
+profile_of_LLMs = json.loads(os.environ.get('profile_of_LLMs'))
+selected_LLM = 0
+
+profile = profile_of_LLMs[selected_LLM]
+bedrock_region = profile['bedrock_region']
+modelId = profile['model_id']
 
 boto3_bedrock = boto3.client(
-    service_name='bedrock-runtime',
-    region_name=bedrock_region,
-    config=Config(
+    service_name = 'bedrock-runtime',
+    region_name = bedrock_region,
+    config = Config(
         retries = {
             'max_attempts': 30
-        }            
+        }
     )
 )
+parameters = get_parameter(profile['model_type'], int(profile['maxOutputTokens']))
 
 llm = Bedrock(
-    model_id=modelId, 
-    client=boto3_bedrock, 
-    streaming=True,
-    callbacks=[StreamingStdOutCallbackHandler()],
-    model_kwargs=parameters)
-```
+    model_id = modelId,
+    client = boto3_bedrock,
+    streaming = True,
+    callbacks = [StreamingStdOutCallbackHandler()],
+    model_kwargs = parameters)
 
-여기서 파라메터는 아래와 같습니다.
-
-```python
-def get_parameter(modelId):
-    if modelId == 'amazon.titan-tg1-large' or modelId == 'amazon.titan-tg1-xlarge': 
-        return {
-            "maxTokenCount":1024,
-            "stopSequences":[],
-            "temperature":0,
-            "topP":0.9
-        }
-    elif modelId == 'anthropic.claude-v1' or modelId == 'anthropic.claude-v2':
-        return {
-            "max_tokens_to_sample":8191, # 8k
-            "temperature":0.1,
-            "top_k":250,
-            "top_p": 0.9,
-            "stop_sequences": [HUMAN_PROMPT]            
-        }
-parameters = get_parameter(modelId)
-```
-
-Bedrock의 지원모델은 [service name이 "bedrock"](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock.html)의 list_foundation_models()을 이용하여 조회합니다. 
-
-```python
-bedrock_client = boto3.client(
-    service_name='bedrock',
-    region_name=bedrock_region,
-)
-modelInfo = bedrock_client.list_foundation_models()    
-print('models: ', modelInfo)
-```
-
-
-
-### Embedding
-
-[BedrockEmbeddings](https://python.langchain.com/docs/integrations/text_embedding/bedrock)을 이용하여 Embedding을 합니다. 'amazon.titan-embed-text-v1'은 Titan Embeddings Generation 1 (G1)을 의미하며 8k token을 지원합니다.
-
-```python
 bedrock_embeddings = BedrockEmbeddings(
-    client=boto3_bedrock,
+    client = boto3_bedrock,
     region_name = bedrock_region,
-    model_id = 'amazon.titan-embed-text-v1' 
-)
+    model_id = 'amazon.titan-embed-text-v1'
+)      
 ```
 
-## Knowledge Database 정의
+Lambda(chat)은 event를 받을때마다 아래와 같이 새로운 LLM으로 교차하게되므로, 하나의 region에서 LLM을 처리할때보다 용량을 N개의 region에서 LLM을 사용하게 되면 N배의 용량이 증가하게 됩니다. 
 
-여기서는 Knowledge Database로 OpenSearch, Faiss, Kendra에 대해 알아봅니다.
+```python
+if selected_LLM >= number_of_LLMs - 1:
+    selected_LLM = 0
+else:
+    selected_LLM = selected_LLM + 1
+```
+
+
+## RAG를 위한 Knowledge Store의 정의
+
+여기서는 Knowledge Store로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
 
 ### OpenSearch
 
-[OpenSearchVectorSearch](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html)을 이용해 vector store를 정의합니다. 여기서 engine은 기본값이 nmslib이지만 필요에 따라 faiss나 lucene를 선택할 수 있습니다.
+[OpenSearchVectorSearch](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html)을 이용해 vector store를 정의합니다. 
 
 ```python
 from langchain.vectorstores import OpenSearchVectorSearch
 
-vectorstore = OpenSearchVectorSearch(
-    index_name = 'rag-index-'+userId+'-*',
+vectorstore_opensearch = OpenSearchVectorSearch(
+    index_name = "rag-index-*", # all
     is_aoss = False,
-    ef_search = 1024, # 512(default)
-    m=48,
-    #engine="faiss",  # default: nmslib
-    embedding_function = bedrock_embeddings,
-    opensearch_url=opensearch_url,
-    http_auth=(opensearch_account, opensearch_passwd), # http_auth=awsauth,
-)
-```
-
-OpenSearch를 이용한 vector store에 데이터는 아래와 같이 add_documents()로 넣을 수 있습니다. 여기서는 index를 이용해 개인화된 RAG를 적용하기 위하여 아래와 같이 index를 userId와 requestId로 정의한 후에 new vector store를 정의하여 이용합니다.
-
-```python
-new_vectorstore = OpenSearchVectorSearch(
-    index_name="rag-index-"+userId+'-'+requestId,
-    is_aoss = False,
-    #engine="faiss",  # default: nmslib
+    ef_search = 1024, # 512(default )
+    m = 48,
+    #engine = "faiss",  # default: nmslib
     embedding_function = bedrock_embeddings,
     opensearch_url = opensearch_url,
-    http_auth=(opensearch_account, opensearch_passwd),
+    http_auth = (opensearch_account, opensearch_passwd), # http_auth = awsauth,
 )
-new_vectorstore.add_documents(docs)      
 ```
 
-관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다.
+OpenSearch를 이용한 vector store에 데이터는 아래와 같이 add_documents()로 넣을 수 있습니다. index에 userId를 넣으면, 검색할때에 특정 사용자가 올린 문서만을 참조할 수 있습니다. 
 
 ```python
-relevant_documents = vectorstore.similarity_search(query)
+def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
+    new_vectorstore = OpenSearchVectorSearch(
+        index_name="rag-index-"+userId+'-'+requestId,
+        is_aoss = False,
+        #engine="faiss",  # default: nmslib
+        embedding_function = bedrock_embeddings,
+        opensearch_url = opensearch_url,
+        http_auth=(opensearch_account, opensearch_passwd),
+    )
+    new_vectorstore.add_documents(docs)    
 ```
+
+관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 추가할 수 있습니다.
+
+```python
+relevant_documents = vectorstore_opensearch.similarity_search(query)
+
+for i, document in enumerate(relevant_documents):
+    if i >= top_k:
+        break
+print(f'## Document {i+1}: {document}')
+
+name = document.metadata['name']
+page = document.metadata['page']
+uri = document.metadata['uri']
+
+doc_info = {
+    "rag_type": rag_type,
+    "metadata": {
+        "source": uri,
+        "title": name,
+        "excerpt": document.page_content,
+        "document_attributes": {
+            "_excerpt_page_number": page
+        }
+    },
+    "assessed_score": "",
+}
+relevant_docs.append(doc_info)
+
+return relevant_docs
+```
+
 
 ### Faiss
 
-아래와 같이 Faiss를 vector store로 정의합니다. 여기서 Faiss는 in-memory vectore store로 인스턴스가 유지될 동안만 사용할 수 있습니다. 또한 faiss vector store에 데이터를 넣기 위해 add_documents()를 이용합니다. 데이터를 넣은 상태에서 검색을 할 수 있으므로, 아래와 같이 isReady를 체크합니다. 
+아래와 같이 Faiss에 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 add_documents를 이용해 추가합니다. Faiss는 in-memory vectore store로 인스턴스가 유지될 동안만 사용할 수 있습니다. 
 
 ```python
-vectorstore = FAISS.from_documents( # create vectorstore from a document
-    docs,  # documents
-    bedrock_embeddings  # embeddings
-)
-isReady = True
-
-vectorstore.add_documents(docs)
+if isReady == False:
+    embeddings = bedrock_embeddings
+    vectorstore_faiss = FAISS.from_documents( # create vectorstore from a document
+        docs,  # documents
+        embeddings  # embeddings
+    )
+    isReady = True
+else:
+    vectorstore_faiss.add_documents(docs)    
 ```
 
-관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다.
+similarity_search_with_score()를 이용면 similarity에 대한 score를 얻을 수 있습니다. Faiss는 관련도가 높은 순서로 문서를 전달하는데, 관련도가 높을 수도록 score의 값는 작은값을 가집니다. 문서에서 이름(title), 페이지(_excerpt_page_number), 신뢰도(assessed_score), 발췌문(excerpt)을 추출합니다. 
 
 ```python
-query_embedding = vectorstore.embedding_function(query)
-relevant_documents = vectorstore.similarity_search_by_vector(query_embedding)
+relevant_documents = vectorstore_faiss.similarity_search_with_score(
+    query = query,
+    k = top_k,
+)
+
+for i, document in enumerate(relevant_documents):    
+    name = document[0].metadata['name']
+    page = document[0].metadata['page']
+    uri = document[0].metadata['uri']
+    confidence = int(document[1])
+    assessed_score = int(document[1])
+
+    doc_info = {
+        "rag_type": rag_type,
+        "confidence": confidence,
+        "metadata": {
+            "source": uri,
+            "title": name,
+            "excerpt": document[0].page_content,
+            "document_attributes": {
+                "_excerpt_page_number": page
+            }
+        },
+        "assessed_score": assessed_score,
+    }
 ```
 
 ### Kendra
 
-Kendra는 embedding이 필요하지 않으므로 아래와 같이 index_id를 설정하여 retriever를 지정합니다.
+Kendra에 문서를 넣을때는 아래와 같이 S3 bucekt를 이용합니다. 경로를 생성할때에 파일명은 URL encoding을 하여야 합니다. 소스으 경로(source_uri)은 CloudFront와 연결된 S3의 경로를 이용합니다. Kendra에 저장되는 문서는 알애ㅘ 같은 파일포맷으로 변환하여야 합니다. 파일을 올릴때는 [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용합니다. 
+
 
 ```python
-from langchain.retrievers import AmazonKendraRetriever
-kendraRetriever = AmazonKendraRetriever(index_id=kendraIndex)
-```
+def store_document_for_kendra(path, s3_file_name, requestId):
+    encoded_name = parse.quote(s3_file_name)
+    source_uri = path + encoded_name    
+    ext = (s3_file_name[s3_file_name.rfind('.')+1:len(s3_file_name)]).upper()
 
-[kendraRetriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html?highlight=kendraretriever#langchain.retrievers.kendra.AmazonKendraRetriever)를 이용해 아래와 같이 관련된 문서를 검색할 수 있습니다.
+    # PLAIN_TEXT, XSLT, MS_WORD, RTF, CSV, JSON, HTML, PDF, PPT, MD, XML, MS_EXCEL
+    if(ext == 'PPTX'):
+        file_type = 'PPT'
+    elif(ext == 'TXT'):
+        file_type = 'PLAIN_TEXT'         
+    elif(ext == 'XLS' or ext == 'XLSX'):
+        file_type = 'MS_EXCEL'      
+    elif(ext == 'DOC' or ext == 'DOCX'):
+        file_type = 'MS_WORD'
+    else:
+        file_type = ext
+
+    kendra_client = boto3.client(
+        service_name='kendra', 
+        region_name=kendra_region,
+        config = Config(
+            retries=dict(
+                max_attempts=10
+            )
+        )
+    )
+
+    documents = [
+        {
+            "Id": requestId,
+            "Title": s3_file_name,
+            "S3Path": {
+                "Bucket": s3_bucket,
+                "Key": s3_prefix+'/'+s3_file_name
+            },
+            "Attributes": [
+                {
+                    "Key": '_source_uri',
+                    'Value': {
+                        'StringValue': source_uri
+                    }
+                },
+                {
+                    "Key": '_language_code',
+                    'Value': {
+                        'StringValue': "ko"
+                    }
+                },
+            ],
+            "ContentType": file_type
+        }
+    ]
+
+    result = kendra_client.batch_put_document(
+        IndexId = kendraIndex,
+        RoleArn = roleArn,
+        Documents = documents       
+    )
+```    
+
+Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)를 사용하지 않고 Boto3를 이용하여 Retrieve와 Query API를 활용합니다. Kendra client를 지정할때 kendra_region을 지정하면, Lambda와 다른 리전의 Kendra를 활용할 수 있습니다. 
 
 ```python
-relevant_documents = kendraRetriever.get_relevant_documents(query)
+kendra_client = boto3.client(
+    service_name='kendra', 
+    region_name=kendra_region,
+    config = Config(
+        retries=dict(
+            max_attempts=10
+        )
+    )
+)
+
+resp =  kendra_client.retrieve(
+    IndexId = index_id,
+    QueryText = query,
+    PageSize = top_k,      
+    AttributeFilter = {
+        "EqualsTo": {      
+            "Key": "_language_code",
+            "Value": {
+                "StringValue": "ko"
+            }
+        },
+    },      
+)
+query_id = resp["QueryId"]
+
+if len(resp["ResultItems"]) >= 1:
+    relevant_docs = []
+    retrieve_docs = []
+    for query_result in resp["ResultItems"]:
+        retrieve_docs.append(extract_relevant_doc_for_kendra(query_id=query_id, apiType="retrieve", query_result=query_result))
 ```
 
 ### 관련된 문서를 포함한 RAG 구현
 
-실제 결과는 [RetrievalQA](https://api.python.langchain.com/en/latest/chains/langchain.chains.retrieval_qa.base.RetrievalQA.html?highlight=retrievalqa#langchain.chains.retrieval_qa.base.RetrievalQA)을 이용해 얻습니다.
-
-relevant_documents = vectorstore.similarity_search(query)
+Assistent와 상호작용(interacton)을 위하여 채팅이력을 이용해 사용자의 질문을 새로운 질문(revised_question)으로 업데이트합니다. 이때 사용하는 prompt는 한국어와 영어로 나누어 아래처럼 적용하고 있습니다. 
 
 ```python
-qa = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=retriever,
-    return_source_documents=True,
-    chain_type_kwargs={"prompt": PROMPT}
-)
-result = qa({"query": query})    
+revised_question = get_revised_question(llm, connectionId, requestId, text) # generate new prompt 
+
+def get_revised_question(llm, connectionId, requestId, query):    
+    pattern_hangul = re.compile('[\u3131-\u3163\uac00-\ud7a3]+')
+    word_kor = pattern_hangul.search(str(query))
+
+    if word_kor and word_kor != 'None':
+        condense_template = """
+        <history>
+        {chat_history}
+        </history>
+
+        Human: <history>를 참조하여, 다음의 <question>의 뜻을 명확히 하는 새로운 질문을 한국어로 생성하세요.
+
+        <question>            
+        {question}
+        </question>
+            
+        Assistant: 새로운 질문:"""
+    else: 
+        condense_template = """
+        <history>
+        {chat_history}
+        </history>
+        Answer only with the new question.
+
+        Human: using <history>, rephrase the follow up <question> to be a standalone question.
+         
+        <quesion>
+        {question}
+        </question>
+
+        Assistant: Standalone question:"""
+
+    condense_prompt_claude = PromptTemplate.from_template(condense_template)        
+    condense_prompt_chain = LLMChain(llm=llm, prompt=condense_prompt_claude)
+
+    chat_history = extract_chat_history_from_memory()
+    revised_question = condense_prompt_chain.run({"chat_history": chat_history, "question": query})
+    
+    return revised_question
 ```
 
-여기서 retriever는 아래와 같이 정의합니다. 여기서 kendra의 retriever는 [AmazonKendraRetriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html?highlight=kendraretriever#langchain.retrievers.kendra.AmazonKendraRetriever)로 정의하고, opensearch와 faiss는 [VectorStore](https://api.python.langchain.com/en/latest/schema/langchain.schema.vectorstore.VectorStore.html?highlight=as_retriever#langchain.schema.vectorstore.VectorStore.as_retriever)을 이용합니다.
+관련된 문서를 아래와 같이 Kendra와 Vector Store인 Faiss, OpenSearch에서 top_k개 만큼 가져옵니다. 
 
 ```python
-if rag_type=='kendra':
-    retriever = kendraRetriever
-elif rag_type=='opensearch' or rag_type=='faiss':
-    retriever = vectorstore.as_retriever(
-        search_type="similarity", 
-        search_kwargs={
-            "k": 3
-        }
+def retrieve_process_from_RAG(conn, query, top_k, rag_type):
+    relevant_docs = []
+    if rag_type == 'kendra':
+        rel_docs = retrieve_from_kendra(query=query, top_k=top_k)      
+        print('rel_docs (kendra): '+json.dumps(rel_docs))
+    else:
+        rel_docs = retrieve_from_vectorstore(query=query, top_k=top_k, rag_type=rag_type)
+        print(f'rel_docs ({rag_type}): '+json.dumps(rel_docs))
+    
+    if(len(rel_docs)>=1):
+        for doc in rel_docs:
+            relevant_docs.append(doc)    
+    
+    conn.send(relevant_docs)
+    conn.close()
+```
+
+검색을 병렬화하면 속도를 개선할 수 있습니다. 아래와 multiprocessing을 이용해 여러개의 thread를 생성하여 검색하고 결과는 Pipe를 이용하여 얻습니다.
+
+```python
+from multiprocessing import Process, Pipe
+
+processes = []
+parent_connections = []
+for rag in capabilities:
+    parent_conn, child_conn = Pipe()
+parent_connections.append(parent_conn)
+
+process = Process(target = retrieve_process_from_RAG, args = (child_conn, revised_question, top_k, rag))
+processes.append(process)
+
+for process in processes:
+    process.start()
+
+for parent_conn in parent_connections:
+    rel_docs = parent_conn.recv()
+
+if (len(rel_docs) >= 1):
+    for doc in rel_docs:
+        relevant_docs.append(doc)
+
+for process in processes:
+    process.join()
+```
+
+
+여기서는 3개의 Vector Store를 사용하고 top_k씩 가져오므로 최대 3xtop_k의 문서를 얻게 됩니다. 문서가 너무 많으면 context window의 범위를 넘을 수 있으므로 여기서 가장 관련이 있는 top_k만을 아래와 같이 선정합니다. 아래에서는 Faiss의 similarity search로 top_k의 문서중에 score가 200이하 인것만을 관련된 문서로 선택하여 사용하고 있습니다.
+
+```python
+if len(relevant_docs) >= 1:
+    relevant_docs = check_confidence(revised_question, relevant_docs, bedrock_embeddings)
+
+def check_confidence(query, relevant_docs, bedrock_embeddings):
+    excerpts = []
+    for i, doc in enumerate(relevant_docs):
+        excerpts.append(
+            Document(
+                page_content=doc['metadata']['excerpt'],
+                metadata={
+                    'name': doc['metadata']['title'],
+                    'order':i,
+                }
+            )
+        )  
+
+    embeddings = bedrock_embeddings
+    vectorstore_confidence = FAISS.from_documents(
+        excerpts,  # documents
+        embeddings  # embeddings
+    )            
+    rel_documents = vectorstore_confidence.similarity_search_with_score(
+        query=query,
+        k=top_k
     )
+
+    docs = []
+    for i, document in enumerate(rel_documents):
+        order = document[0].metadata['order']
+        name = document[0].metadata['name']
+        assessed_score = document[1]
+
+        relevant_docs[order]['assessed_score'] = int(assessed_score)
+
+        if assessed_score < 200:
+            docs.append(relevant_docs[order])    
+
+    return docs
 ```
+
+관련된 문서들은 아래와 같이 하나의 context로 모읍니다. 이후 PROMPT에 relevant_context와 새로운 질문(revised_question)을 넣어서 LLM에 답변을 요청합니다. 답변은 stream으로 받아서 아래처럼 client로 전달합니다.
+
+```python
+relevant_context = ""
+for document in relevant_docs:
+    relevant_context = relevant_context + document['metadata']['excerpt'] + "\n\n"
+
+stream = llm(PROMPT.format(context=relevant_context, question=revised_question))
+msg = readStreamMsg(connectionId, requestId, stream)
+```
+
+
 
 
 ### Reference 표시하기
