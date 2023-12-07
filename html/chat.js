@@ -259,11 +259,6 @@ function onSend(e) {
 
         let requestId = uuidv4();
         addSentMessage(requestId, timestr, message.value);
-
-        
-        if(conversationType=='qa') {
-            conv_type = 'qa'
-        }
         
         sendMessage({
             "user_id": userId,
@@ -271,7 +266,7 @@ function onSend(e) {
             "request_time": requestTime,        
             "type": "text",
             "body": message.value,
-            "conv_type": conv_type,
+            "conv_type": conversationType,
         })
         
         sentTime.put(requestId, current);
@@ -523,10 +518,6 @@ attachFile.addEventListener('click', function(){
                         if (xmlHttp.readyState == XMLHttpRequest.DONE && xmlHttp.status == 200 ) {
                             console.log(xmlHttp.responseText);
 
-                            if(conversationType=='qa') {
-                                conv_type = 'qa'
-                            }
-                                           
                             // summary for the upload file                            
                             sendMessage({
                                 "user_id": userId,
@@ -534,7 +525,7 @@ attachFile.addEventListener('click', function(){
                                 "request_time": requestTime,
                                 "type": "document",
                                 "body": filename,
-                                "conv_type": conv_type,
+                                "conv_type": conversationType,
                             })
                         }
                         else if(xmlHttp.readyState == XMLHttpRequest.DONE && xmlHttp.status != 200) {
