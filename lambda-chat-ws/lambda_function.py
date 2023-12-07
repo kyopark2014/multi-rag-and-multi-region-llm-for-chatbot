@@ -792,7 +792,7 @@ def check_confidence(query, relevant_docs, bedrock_embeddings):
 
     return docs
 
-def get_reference(docs, rag_type):
+def get_reference(docs):
     reference = "\n\nFrom\n"
     for i, doc in enumerate(docs):
         if doc['rag_type'] == 'kendra':
@@ -1019,7 +1019,7 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
         raise Exception ("Not able to request to LLM")    
 
     if len(relevant_docs)>=1 and enableReference=='true':
-        msg = msg+get_reference(relevant_docs, rag_type)
+        msg = msg+get_reference(relevant_docs)
             
     if isDebugging==True:   # extract chat history for debug
         chat_history_all = extract_chat_history_from_memory()
