@@ -30,7 +30,8 @@ const opensearch_passwd = "Wifi1234!";
 const enableReference = 'true';
 let opensearch_url = "";
 const debugMessageMode = 'true'; // if true, debug messages will be delivered to the client.
-const useMultipleUpload = 'true';
+const useParallelUpload = 'true';
+const useParallelRAG = 'true';
 const numberOfRelevantDocs = '8';
 
 const number_of_LLMs = "2"; // total number of LLMs to use
@@ -557,7 +558,8 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
         kendraIndex: kendraIndex,
         roleArn: roleLambdaWebsocket.roleArn,
         debugMessageMode: debugMessageMode,
-        useMultipleUpload: useMultipleUpload,
+        useParallelUpload: useParallelUpload,
+        useParallelRAG: useParallelRAG,
         numberOfRelevantDocs: numberOfRelevantDocs,
         number_of_LLMs:number_of_LLMs,
         profile_of_LLMs:profile_of_LLMs,
