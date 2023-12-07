@@ -510,113 +510,6 @@ def get_reference(docs, rag_type):
 ```
 
 
-### Prompt의 생성
-
-RAG와 대화 이력(chat history)를 모두 이용해 질문의 답변을 얻기 위해서는 [ConversationalRetrievalChain](https://api.python.langchain.com/en/latest/chains/langchain.chains.conversational_retrieval.base.ConversationalRetrievalChain.html?highlight=conversationalretrievalchain#langchain.chains.conversational_retrieval.base.ConversationalRetrievalChain)을 이용하거나, history와 현재의 prompt로 새로운 prompt를 생성한 이후에 retrivalQA를 이용해 얻을수 있습니다.
-
-대화 이력(chat history)를 고려한 현재의 prompt를 생성하는 방법은 아래와 같습니다. 여기서는 prompt template에 "rephrase the follow up question"를 포함하여 새로운 질문을 생성합니다. 
-
-```python
-generated_prompt = get_generated_prompt(text)
-
-def get_generated_prompt(query):    
-    condense_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
-
-    Chat History:
-    {chat_history}
-    Follow Up Input: {question}
-    Standalone question:"""
-    CONDENSE_QUESTION_PROMPT = PromptTemplate(
-        template = condense_template, input_variables = ["chat_history", "question"]
-    )
-    
-    chat_history = extract_chat_history_from_memory()
-    
-    question_generator_chain = LLMChain(llm=llm, prompt=CONDENSE_QUESTION_PROMPT)
-    return question_generator_chain.run({"question": query, "chat_history": chat_history})
-```
-
-이후, 생성된 질문과 RetrievalQA를 이용해 RAG 적용한 결과를 얻을 수 있습니다.
-
-## 메모리에 대화 저장
-
-### RAG를 사용하지 않는 경우
-
-lambda-chat-ws는 인입된 메시지의 userId를 이용하여 map_chat에 기저장된 대화 이력(memory_chat)가 있는지 확인합니다. 채팅 이력이 없다면 아래와 같이 [ConversationBufferMemory](https://api.python.langchain.com/en/latest/memory/langchain.memory.buffer.ConversationBufferMemory.html?highlight=conversationbuffermemory#langchain.memory.buffer.ConversationBufferMemory)로 memory_chat을 설정합니다. 여기서, Anhropic Claude는 human과 ai의 이름으로 "Human"과 "Assistant"로 설정합니다. LLM에 응답을 요청할때에는 ConversationChain을 이용합니다.
-
-```python
-map_chat = dict()
-
-if userId in map_chat:  
-    memory_chat = map_chat[userId]
-else:
-    memory_chat = ConversationBufferMemory(human_prefix='Human', ai_prefix='Assistant')
-    map_chat[userId] = memory_chat
-conversation = ConversationChain(llm=llm, verbose=False, memory=memory_chat)
-```
-
-[ConversationBufferWindowMemory](https://api.python.langchain.com/en/latest/memory/langchain.memory.buffer_window.ConversationBufferWindowMemory.html)을 이용하여 간단하게 k개로 conversation의 숫자를 제한할 수 있습니다.
-
-
-여기서는 Faiss를 이용할때 대화이력이 없는 경우에는 RAG를 쓸수 없으므로 위와 같이 적용합니다.
-
-### RAG를 사용하는 경우
-
-RAG를 이용할때는 [ConversationBufferMemory](https://api.python.langchain.com/en/latest/memory/langchain.memory.buffer.ConversationBufferMemory.html?highlight=conversationbuffermemory#langchain.memory.buffer.ConversationBufferMemory)을 이용해 아래와 같이 채팅 메모리를 지정합니다. 대화가 끝난후에는 add_user_message()와 add_ai_message()를 이용하여 새로운 chat diaglog를 업데이트 합니다.
-
-```python
-map_chain = dict()
-
-if userId in map_chain:  
-    memory_chain = map_chain[userId]
-else: 
-    memory_chain = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-    map_chain[userId] = memory_chain
-
-msg = get_answer_from_conversation(text, conversation, convType, connectionId, requestId)      
-
-memory_chain.chat_memory.add_user_message(text)  # append new diaglog
-memory_chain.chat_memory.add_ai_message(msg)
-
-def get_answer_from_conversation(text, conversation, convType, connectionId, requestId):
-    conversation.prompt = get_prompt_template(text, convType)
-    stream = conversation.predict(input=text)                        
-    msg = readStreamMsg(connectionId, requestId, stream)
-
-    return msg
-```
-
-여기서 stream은 아래와 같은 방식으로 WebSocket을 사용하는 client에 메시지를 전달할 수 있습니다.
-
-```python
-def readStreamMsg(connectionId, requestId, stream):
-    msg = ""
-    if stream:
-        for event in stream:
-            msg = msg + event
-
-            result = {
-                'request_id': requestId,
-                'msg': msg
-            }
-            sendMessage(connectionId, result)
-    print('msg: ', msg)
-    return msg
-```
-
-여기서 client로 메시지를 보내는 sendMessage()는 아래와 같습니다. 여기서는 boto3의 [post_to_connection](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigatewaymanagementapi/client/post_to_connection.html)를 이용하여 메시지를 WebSocket의 endpoint인 API Gateway로 전송합니다.
-
-```python
-def sendMessage(id, body):
-    try:
-        client.post_to_connection(
-            ConnectionId=id, 
-            Data=json.dumps(body)
-        )
-    except: 
-        raise Exception ("Not able to send a message")
-```
-
 ### AWS CDK로 인프라 구현하기
 
 [CDK 구현 코드](./cdk-qa-with-rag/README.md)에서는 Typescript로 인프라를 정의하는 방법에 대해 상세히 설명하고 있습니다.
@@ -670,86 +563,12 @@ def sendMessage(id, body):
 
 
 
-#### Translation
-
-"아마존 베드락을 이용하여 주셔서 감사합니다. 편안한 대화를 즐기실수 있으며, 파일을 업로드하면 요약을 할 수 있습니다.”로 입력하고 번역 결과를 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/818662e1-983f-44c2-bfcf-e2605ba7a1e6)
-
-#### Extracted Topic and sentiment
-
-“식사 가성비 좋습니다. 위치가 좋고 스카이라운지 바베큐 / 야경 최곱니다. 아쉬웠던 점 · 지하주차장이 비좁습니다.. 호텔앞 교통이 너무 복잡해서 주변시설을 이용하기 어렵습니다. / 한강나가는 길 / 주변시설에 나가는 방법등.. 필요합니다.”를 입력하고 결과를 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/8c38a58b-08df-4e9e-a162-1cd8f542fb46)
-
-#### Information extraction
-
-“John Park. Solutions Architect | WWCS Amazon Web Services Email: john@amazon.com Mobile: +82-10-1234-5555“로 입력후에 이메일이 추출되는지 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/f613e86e-b08d-45e8-ac0e-71334427f450)
-
-#### PII(personally identifiable information) 삭제하기
-
-PII(Personal Identification Information)의 삭제의 예는 아래와 같습니다. "John Park, Ph.D. Solutions Architect | WWCS Amazon Web Services Email: john@amazon.com Mobile: +82-10-1234-4567"와 같이 입력하여 name, phone number, address를 삭제한 텍스트를 얻습니다. 프롬프트는 [PII](https://docs.anthropic.com/claude/docs/constructing-a-prompt)를 참조합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/a77d034c-32fc-4c84-8054-f4e1230292d6)
-
-#### 문장 오류 고치기
-
-"To have a smoth conversation with a chatbot, it is better for usabilities to show responsesess in a stream-like, conversational maner rather than waiting until the complete answer."로 오류가 있는 문장을 입력합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/55774e11-58e3-4eb4-b91c-5b09572456bd)
-
-"Chatbot과 원할한 데화를 위해서는 사용자의 질문엥 대한 답변을 완전히 얻을 때까지 기다리기 보다는 Stream 형태로 보여주는 것이 좋습니다."로 입력후에 결과를 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/7b098a29-9bf5-43bf-a32f-82c94ccd04eb)
-
-#### 복잡한 질문 (step-by-step)
-
-"I have two pet cats. One of them is missing a leg. The other one has a normal number of legs for a cat to have. In total, how many legs do my cats have?"를 입력하고 결과를 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/c1bf6749-1ce8-44ba-81f1-1fb52e04a2e8)
-
-
-"내 고양이 두 마리가 있다. 그중 한 마리는 다리가 하나 없다. 다른 한 마리는 고양이가 정상적으로 가져야 할 다리 수를 가지고 있다. 전체적으로 보았을 때, 내 고양이들은 다리가 몇 개나 있을까?"로 질문을 입력하고 결과를 확인합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/992c8385-f897-4411-b6cf-b185465e8690)
-
-#### 날짜/시간 추출하기
-
-메뉴에서 "Timestamp Extraction"을 선택하고, "지금은 2023년 12월 5일 18시 26분이야"라고 입력하면 prompt를 이용해 아래처럼 시간을 추출합니다.
-
-![noname](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/7dd7e659-498c-4898-801c-b72830bf254b)
-
-
-실제 결과 메시지는 아래와 같습니다. 
-
-```xml
-<result>
-<year>2023</year>
-<month>12</month>
-<day>05</day>
-<hour>18</hour>
-<minute>26</minute>
-</result>
-```
-
-#### 어린이와 대화 (Few shot example)
-
-대화의 상대에 맞추어서 질문에 답변을하여야 합니다. 이를테면 [General Conversation]에서 "산타가 크리스마스에 선물을 가져다 줄까?"로 질문을 하면 아래와 같이 답변합니다.
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/4624727b-addc-4f5d-8f3d-94f358572326)
-
-[9. Child Conversation (few shot)]으로 전환합니다. 동일한 질문을 합니다. 상대에 맞추어서 적절한 답변을 할 수 있었습니다. 
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/cbbece5c-5476-4f3b-89f7-c7fcf90ca796)
-
 
 ## 리소스 정리하기 
 
 더이상 인프라를 사용하지 않는 경우에 아래처럼 모든 리소스를 삭제할 수 있습니다. 
 
-1) [API Gateway Console](https://ap-northeast-2.console.aws.amazon.com/apigateway/main/apis?region=ap-northeast-2)로 접속하여 "rest-api-for-stream-chatbot", "ws-api-for-stream-chatbot"을 삭제합니다.
+1) [API Gateway Console](https://ap-northeast-2.console.aws.amazon.com/apigateway/main/apis?region=ap-northeast-2)로 접속하여 "api-chatbot-for-multi-rag-chatbot", "api-multi-rag-chatbot"을 삭제합니다.
 
 2) [Cloud9 console](https://ap-northeast-2.console.aws.amazon.com/cloud9control/home?region=ap-northeast-2#/)에 접속하여 아래의 명령어로 전체 삭제를 합니다.
 
@@ -758,16 +577,9 @@ PII(Personal Identification Information)의 삭제의 예는 아래와 같습니
 cdk destroy --all
 ```
 
-## 문제점
-
-Retrive는 [ScoreAttributes](https://docs.aws.amazon.com/kendra/latest/APIReference/API_ScoreAttributes.html)는 한국어에 대해 항상 "NOT_AVAILABLE" 이므로, 전혀 관련없는 문서들이 RAG에 검색이 될 수 있습니다. 
-
-![image](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/2b0f90b9-f584-4274-a42c-cf9f196bcac7)
-
 
 ## 결론
 
-AWS 서울 리전에서 Amazon Bedrock과 vector store를 이용하여 질문과 답변(Question/Answering)을 수행하는 chatbot을 구현하였습니다. Amazon Bedrock은 여러 종류의 대용량 언어 모델중에 한개를 선택하여 사용할 수 있습니다. 여기서는 Amazon Titan을 이용하여 RAG 동작을 구현하였고, 대용량 언어 모델의 환각(hallucination) 문제를 해결할 수 있었습니다. 또한 Chatbot 어플리케이션 개발을 위해 LangChain을 활용하였고, IaC(Infrastructure as Code)로 AWS CDK를 이용하였습니다. 대용량 언어 모델은 향후 다양한 어플리케이션에서 효과적으로 활용될것으로 기대됩니다. Amazon Bedrock을 이용하여 대용량 언어 모델을 개발하면 기존 AWS 인프라와 손쉽게 연동하고 다양한 어플리케이션을 효과적으로 개발할 수 있습니다.
 
 
 
