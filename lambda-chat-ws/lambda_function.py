@@ -1032,7 +1032,7 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
 
 def get_answer_from_conversation(text, conversation, conv_type, connectionId, requestId):
     conversation.prompt = get_prompt_template(text, conv_type)
-    print('PROMPT: ', conversation.prompt)
+    #print('PROMPT: ', conversation.prompt)
     try: 
         isTyping(connectionId, requestId)    
         stream = conversation.predict(input=text)
@@ -1092,7 +1092,7 @@ def getResponse(connectionId, jsonBody):
     profile = profile_of_LLMs[selected_LLM]
     bedrock_region =  profile['bedrock_region']
     modelId = profile['model_id']
-    print(f'selected_LLM: {selected_LLM}, bedrock_region: {bedrock_region}, modelId: {modelId}')
+    print(f'selected_LLM: {profile_of_LLMs[selected_LLM]}, bedrock_region: {bedrock_region}, modelId: {modelId}')
     # print('profile: ', profile)
     
     # bedrock   
@@ -1106,6 +1106,7 @@ def getResponse(connectionId, jsonBody):
         )
     )
     parameters = get_parameter(profile['model_type'], profile['maxOutputTokens'])
+    print('parameters: ', parameters)
 
     # langchain for bedrock
     llm = Bedrock(
@@ -1114,6 +1115,8 @@ def getResponse(connectionId, jsonBody):
         streaming=True,
         callbacks=[StreamingStdOutCallbackHandler()],
         model_kwargs=parameters)
+    
+    print('test: ', llm('Hello'))
 
     # embedding for RAG
     bedrock_embeddings = BedrockEmbeddings(
