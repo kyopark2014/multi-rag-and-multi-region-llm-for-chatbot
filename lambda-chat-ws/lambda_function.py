@@ -856,11 +856,12 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
 
     relevant_docs = []
     if rag_type == 'faiss' and isReady:
-        relevant_documents = vectorstore_faiss.similarity_search_with_score(query)
+        relevant_documents = vectorstore_faiss.similarity_search_with_score(
+            query = query,
+            k = top_k,
+        )
         
         for i, document in enumerate(relevant_documents):
-            if i>=top_k:
-                break
             print(f'## Document {i+1}: {document}')
 
             name = document[0].metadata['name']
