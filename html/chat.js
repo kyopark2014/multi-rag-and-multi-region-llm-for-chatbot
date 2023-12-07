@@ -1,8 +1,8 @@
-const endpoint = 'wss://231cnjqqra.execute-api.us-west-2.amazonaws.com/dev';
+const endpoint = 'wss://sclcy5s5cj.execute-api.ap-northeast-1.amazonaws.com/dev';
 const langstate = 'korean'; // korean or english
 
 console.log('feedback...');
-feedback = document.getElementById('feedback');
+const feedback = document.getElementById('feedback');
 feedback.style.display = 'none';    
 
 let webSocket
