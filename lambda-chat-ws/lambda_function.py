@@ -1092,7 +1092,7 @@ def getResponse(connectionId, jsonBody):
     profile = profile_of_LLMs[selected_LLM]
     bedrock_region =  profile['bedrock_region']
     modelId = profile['model_id']
-    print(f'selected_LLM: {profile_of_LLMs[selected_LLM]}, bedrock_region: {bedrock_region}, modelId: {modelId}')
+    print(f'selected_LLM: {selected_LLM}, bedrock_region: {bedrock_region}, modelId: {modelId}')
     # print('profile: ', profile)
     
     # bedrock   
@@ -1105,7 +1105,7 @@ def getResponse(connectionId, jsonBody):
             }            
         )
     )
-    parameters = get_parameter(profile['model_type'], profile['maxOutputTokens'])
+    parameters = get_parameter(profile['model_type'], int(profile['maxOutputTokens']))
     print('parameters: ', parameters)
 
     # langchain for bedrock
@@ -1116,8 +1116,6 @@ def getResponse(connectionId, jsonBody):
         callbacks=[StreamingStdOutCallbackHandler()],
         model_kwargs=parameters)
     
-    print('test: ', llm('Hello'))
-
     # embedding for RAG
     bedrock_embeddings = BedrockEmbeddings(
         client=boto3_bedrock,
