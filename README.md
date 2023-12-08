@@ -35,7 +35,8 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 
 이때의 Sequence diagram은 아래와 같습니다.
 
-<img src="./images/sequence" width="800">
+<img src="./images/sequence.png" width="800">
+
 
 ## 주요 구성
 
