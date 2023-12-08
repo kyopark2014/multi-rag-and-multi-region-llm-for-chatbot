@@ -230,6 +230,8 @@ for i, document in enumerate(relevant_documents):
     }
 ```
 
+Faiss의 assessed_score는 56와 같은 1보다 큰 정수값을 가집니다.
+
 ### Kendra
 
 Kendra에 문서를 넣을때는 아래와 같이 S3 bucekt를 이용합니다. 경로를 생성할때에 파일명은 URL encoding을 하여야 합니다. 소스으 경로(source_uri)은 CloudFront와 연결된 S3의 경로를 이용합니다. Kendra에 저장되는 문서는 알애ㅘ 같은 파일포맷으로 변환하여야 합니다. 파일을 올릴때는 [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용합니다. 
@@ -296,40 +298,69 @@ def store_document_for_kendra(path, s3_file_name, requestId):
     )
 ```    
 
-Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)를 사용하지 않고 Boto3를 이용하여 Retrieve와 Query API를 활용합니다. Kendra client를 지정할때 kendra_region을 지정하면, Lambda와 다른 리전의 Kendra를 활용할 수 있습니다. 
+Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할때와 동일하게 "_language_code"을 "ko"로 설정하고, "top_k"만큼의 Relevent Document를 가져오도록 설정합니다.
 
 ```python
-kendra_client = boto3.client(
-    service_name='kendra', 
+from langchain.retrievers import AmazonKendraRetriever
+kendraRetriever = AmazonKendraRetriever(
+    index_id=kendraIndex, 
+    top_k=top_k, 
     region_name=kendra_region,
-    config = Config(
-        retries=dict(
-            max_attempts=10
-        )
-    )
-)
-
-resp =  kendra_client.retrieve(
-    IndexId = index_id,
-    QueryText = query,
-    PageSize = top_k,      
-    AttributeFilter = {
+    attribute_filter = {
         "EqualsTo": {      
             "Key": "_language_code",
             "Value": {
                 "StringValue": "ko"
             }
         },
-    },      
+    },
 )
-query_id = resp["QueryId"]
-
-if len(resp["ResultItems"]) >= 1:
-    relevant_docs = []
-    retrieve_docs = []
-    for query_result in resp["ResultItems"]:
-        retrieve_docs.append(extract_relevant_doc_for_kendra(query_id=query_id, apiType="retrieve", query_result=query_result))
 ```
+
+get_relevant_documents()을 이용하여 관련된 문서를 가져옵니다. LangChain의 AmazonKendraRetriever은 Kendra의 Retrieve를 이용해 조회를 합니다. 
+
+
+```python
+rag_type = "kendra"
+api_type = "kendraRetriever"
+relevant_docs = []
+relevant_documents = kendraRetriever.get_relevant_documents(
+    query = query,
+    top_k = top_k,
+)
+
+for i, document in enumerate(relevant_documents):
+    #print('document.page_content:', document.page_content)
+
+    result_id = document.metadata['result_id']
+    document_id = document.metadata['document_id']
+    title = document.metadata['title']
+    excerpt = document.metadata['excerpt']
+    uri = document.metadata['document_attributes']['_source_uri']
+    page = document.metadata['document_attributes']['_excerpt_page_number']
+
+    assessed_score = ""
+
+    doc_info = {
+        "rag_type": rag_type,
+        "api_type": api_type,
+        "metadata": {
+            "document_id": document_id,
+            "source": uri,
+            "title": title,
+            "excerpt": excerpt,
+            "document_attributes": {
+                "_excerpt_page_number": page
+            }
+        },
+        "assessed_score": assessed_score,
+        "result_id": result_id
+    }
+    relevant_docs.append(doc_info)
+
+return relevant_docs
+```
+
 
 ### 관련된 문서를 포함한 RAG 구현
 
