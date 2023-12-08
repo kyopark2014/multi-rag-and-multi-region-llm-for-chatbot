@@ -194,7 +194,7 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
     new_vectorstore = OpenSearchVectorSearch(
         index_name="rag-index-"+userId+'-'+requestId,
         is_aoss = False,
-        engine="faiss",  # default: nmslib
+        #engine="faiss",  # default: nmslib
         embedding_function = bedrock_embeddings,
         opensearch_url = opensearch_url,
         http_auth=(opensearch_account, opensearch_passwd),
@@ -1274,7 +1274,7 @@ def getResponse(connectionId, jsonBody):
             is_aoss = False,
             ef_search = 1024, # 512(default)
             m=48,
-            engine="faiss",  # default: nmslib
+            #engine="faiss",  # default: nmslib
             embedding_function = bedrock_embeddings,
             opensearch_url=opensearch_url,
             http_auth=(opensearch_account, opensearch_passwd), # http_auth=awsauth,
