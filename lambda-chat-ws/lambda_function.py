@@ -563,8 +563,6 @@ def retrieve_from_kendra_using_kendra_retriever(query, top_k):
         if "_excerpt_page_number" in document.metadata['document_attributes']:            
             page = document.metadata['document_attributes']['_excerpt_page_number']
 
-        #confidence = int(document[1])
-        #assessed_score = int(document[1])
         confidence = ""
         assessed_score = ""
             
@@ -574,7 +572,6 @@ def retrieve_from_kendra_using_kendra_retriever(query, top_k):
                 "api_type": api_type,
                 "confidence": confidence,
                 "metadata": {
-                    #"type": query_result_type,
                     "document_id": document_id,
                     "source": uri,
                     "title": title,
@@ -583,8 +580,6 @@ def retrieve_from_kendra_using_kendra_retriever(query, top_k):
                         "_excerpt_page_number": page
                     }
                 },
-                #"query_id": query_id,
-                #"feedback_token": feedback_token
                 "assessed_score": assessed_score,
                 "result_id": result_id
             }
@@ -595,14 +590,11 @@ def retrieve_from_kendra_using_kendra_retriever(query, top_k):
                 "api_type": api_type,
                 "confidence": confidence,
                 "metadata": {
-                    #"type": query_result_type,
                     "document_id": document_id,
                     "source": uri,
                     "title": title,
                     "excerpt": excerpt,
                 },
-                #"query_id": query_id,
-                #"feedback_token": feedback_token
                 "assessed_score": assessed_score,
                 "result_id": result_id
             }
@@ -619,8 +611,7 @@ def retrieve_from_kendra_using_custom_retriever(query, top_k):
         top_k=top_k,
     )
     print('length of relevant_documents: ', len(relevant_documents))
-    print('relevant_documents: ', relevant_documents)
-    
+    print('relevant_documents: ', relevant_documents)    
 
     index_id = kendraIndex        
     kendra_client = boto3.client(
@@ -1002,7 +993,7 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
             relevant_docs.append(doc_info)
             
     elif rag_type == 'opensearch':
-        relevant_documents = vectorstore_opensearch.similarity_search(
+        relevant_documents = vectorstore_opensearch.similarity_search_with_score(
             query = query,
             k = top_k,
         )
