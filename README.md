@@ -521,28 +521,14 @@ msg = readStreamMsg(connectionId, requestId, stream)
 아래와 같이 kendra는 doc의 metadata에서 reference에 대한 정보를 추출합니다. 여기서 file의 이름은 doc.metadata['title']을 이용하고, 페이지는 doc.metadata['document_attributes']['_excerpt_page_number']을 이용해 얻습니다. URL은 cloudfront의 url과 S3 bucket의 key, object를 조합하여 구성합니다. opensearch와 faiss는 파일명, page 숫자, 경로(URL path)를 metadata의 'name', 'page', 'url'을 통해 얻습니다.
 
 ```python
-def get_reference(docs, rag_type):
-    if rag_type == 'kendra':
-        reference = "\n\nFrom\n"
-        for doc in docs:
-            name = doc.metadata['title']
-            url = path+name
+def get_reference(docs):
+    reference = "\n\nFrom\n"
+    for i, doc in enumerate(docs):
+        name = doc['metadata']['title']
+        uri = doc['metadata']['source']
+        reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
 
-            if doc.metadata['document_attributes']:
-                page = doc.metadata['document_attributes']['_excerpt_page_number']
-                reference = reference + f"{page}page in <a href={url} target=_blank>{name}</a>\n"
-            else:
-                reference = reference + f"in <a href={url} target=_blank>{name}</a>\n"
-    else:
-        reference = "\n\nFrom\n"
-        for doc in docs:
-            name = doc.metadata['name']
-            page = doc.metadata['page']
-            url = doc.metadata['url']
-        
-            reference = reference + f"{page}page in <a href={url} target=_blank>{name}</a>\n"
-        
-    return reference
+return reference
 ```
 
 
