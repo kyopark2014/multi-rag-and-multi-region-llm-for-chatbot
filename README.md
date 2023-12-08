@@ -35,8 +35,7 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 
 이때의 Sequence diagram은 아래와 같습니다.
 
-![seq-chat](https://github.com/kyopark2014/korean-chatbot-using-amazon-bedrock/assets/52392004/13818855-0a63-4d5e-9f9b-1b98245f80b6)
-
+<img src="./images/sequence" width="800">
 
 ## 주요 구성
 
