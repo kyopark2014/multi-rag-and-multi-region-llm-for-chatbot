@@ -182,6 +182,7 @@ for i, document in enumerate(relevant_documents):
 return relevant_docs
 ```
 
+이때, assessed_score의 한 예는 "0.008877229"와 같은 소숫점 이하의 숫자를 가집니다.
 
 ### Faiss
 
