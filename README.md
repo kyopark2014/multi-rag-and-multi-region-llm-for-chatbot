@@ -150,30 +150,34 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
 관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 추가할 수 있습니다.
 
 ```python
-relevant_documents = vectorstore_opensearch.similarity_search(query)
+relevant_documents = vectorstore_opensearch.similarity_search_with_score(
+    query = query,
+    k = top_k,
+)
 
 for i, document in enumerate(relevant_documents):
-    if i >= top_k:
-        break
-print(f'## Document {i+1}: {document}')
+    name = document[0].metadata['name']
+    page = document[0].metadata['page']
+    uri = document[0].metadata['uri']
 
-name = document.metadata['name']
-page = document.metadata['page']
-uri = document.metadata['uri']
+    excerpt = document[0].page_content
+    confidence = str(document[1])
+    assessed_score = str(document[1])
 
-doc_info = {
-    "rag_type": rag_type,
-    "metadata": {
-        "source": uri,
-        "title": name,
-        "excerpt": document.page_content,
-        "document_attributes": {
-            "_excerpt_page_number": page
-        }
-    },
-    "assessed_score": "",
-}
-relevant_docs.append(doc_info)
+    doc_info = {
+        "rag_type": rag_type,
+        "confidence": confidence,
+        "metadata": {
+            "source": uri,
+            "title": name,
+            "excerpt": excerpt,
+            "document_attributes": {
+                "_excerpt_page_number": page
+            }
+        },
+        "assessed_score": assessed_score,
+    }
+    relevant_docs.append(doc_info)
 
 return relevant_docs
 ```
