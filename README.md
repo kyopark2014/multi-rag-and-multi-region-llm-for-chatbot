@@ -33,7 +33,7 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 단계6: 사용자는 답변을 확인하고, 필요시 Amazon S3에 저장된 문서를 Amazon CloudFront를 이용해 안전하게 읽어서 보여줍니다. 
 
 
-이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 LLM에 대한 RAG query 동작을 수행합니다. 또한 event는 us-east-1과 us-west-2의 LLM을 이용해 요청을 처리합니다. DynamoDB로 부터 채팅이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
+이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 지식 저장소에 대한 RAG query 동작을 수행합니다. 또한 event는 us-east-1과 us-west-2의 LLM을 이용해 요청을 처리합니다. DynamoDB로 부터 채팅이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
 
 <img src="./images/sequence.png" width="800">
 
