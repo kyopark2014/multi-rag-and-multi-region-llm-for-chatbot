@@ -46,6 +46,7 @@ path = os.environ.get('path')
 useParallelUpload = os.environ.get('useParallelUpload', 'false')
 useParallelRAG = os.environ.get('useParallelRAG', 'false')
 kendraIndex = os.environ.get('kendraIndex')
+kendra_method = "kendra_retriever" # custom_retriever or kendra_retriever
 roleArn = os.environ.get('roleArn')
 numberOfRelevantDocs = os.environ.get('numberOfRelevantDocs', '10')
 top_k = int(numberOfRelevantDocs)
@@ -522,6 +523,95 @@ kendraRetriever = AmazonKendraRetriever(
 )
 
 def retrieve_from_kendra(query, top_k):
+    if kendra_method == 'kendra_retriever':
+        relevant_docs = retrieve_from_kendra_using_kendra_retriever(query, top_k)
+    else: 
+        relevant_docs = retrieve_from_kendra_using_custom_retriever(query, top_k)
+    
+    return relevant_docs
+
+def retrieve_from_kendra_using_kendra_retriever(query, top_k):
+    print('query: ', query)
+
+    relevant_docs = []
+    relevant_documents = kendraRetriever.get_relevant_documents(
+        query=query,
+        top_k=top_k,
+    )
+    #print('length of relevant_documents: ', len(relevant_documents))
+    #print('relevant_documents: ', relevant_documents)
+
+    rag_type = "kendra"
+    api_type = "kendraRetriever"
+
+    for i, document in enumerate(relevant_documents):
+        #print('document.page_content:', document.page_content)
+        #print('document.metadata:', document.metadata)
+        print(f'## Document {i+1}: {document}')
+
+        result_id = document.metadata['result_id']
+        document_id = document.metadata['document_id']
+        # source = document.metadata['source']
+        title = document.metadata['title']
+        excerpt = document.metadata['excerpt']
+
+        uri = ""
+        if "_source_uri" in document.metadata['document_attributes']:
+            uri = document.metadata['document_attributes']['_source_uri']
+
+        page = ""
+        if "_excerpt_page_number" in document.metadata['document_attributes']:            
+            page = document.metadata['document_attributes']['_excerpt_page_number']
+
+        #confidence = int(document[1])
+        #assessed_score = int(document[1])
+        confidence = ""
+        assessed_score = ""
+            
+        if page:
+            doc_info = {
+                "rag_type": rag_type,
+                "api_type": api_type,
+                "confidence": confidence,
+                "metadata": {
+                    #"type": query_result_type,
+                    "document_id": document_id,
+                    "source": uri,
+                    "title": title,
+                    "excerpt": excerpt,
+                    "document_attributes": {
+                        "_excerpt_page_number": page
+                    }
+                },
+                #"query_id": query_id,
+                #"feedback_token": feedback_token
+                "assessed_score": assessed_score,
+                "result_id": result_id
+            }
+
+        else: 
+            doc_info = {
+                "rag_type": rag_type,
+                "api_type": api_type,
+                "confidence": confidence,
+                "metadata": {
+                    #"type": query_result_type,
+                    "document_id": document_id,
+                    "source": uri,
+                    "title": title,
+                    "excerpt": excerpt,
+                },
+                #"query_id": query_id,
+                #"feedback_token": feedback_token
+                "assessed_score": assessed_score,
+                "result_id": result_id
+            }
+            
+        relevant_docs.append(doc_info)
+    
+    return relevant_docs        
+
+def retrieve_from_kendra_using_custom_retriever(query, top_k):
     print('query: ', query)
 
     relevant_documents = kendraRetriever.get_relevant_documents(
@@ -529,7 +619,7 @@ def retrieve_from_kendra(query, top_k):
         top_k=top_k,
     )
     print('length of relevant_documents: ', len(relevant_documents))
-    print('lrelevant_documents: ', relevant_documents)
+    print('relevant_documents: ', relevant_documents)
     
 
     index_id = kendraIndex        
@@ -804,7 +894,11 @@ def get_reference(docs):
     reference = "\n\nFrom\n"
     for i, doc in enumerate(docs):
         if doc['rag_type'] == 'kendra':
-            if doc['api_type'] == 'retrieve': # Retrieve. socre of confidence is only avaialbe for English
+            if doc['api_type'] == 'kendraRetriever': # provided by kendraRetriever from langchain
+                    name = doc['metadata']['title']
+                    uri = doc['metadata']['source']
+                    reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+            elif doc['api_type'] == 'retrieve': # Retrieve. socre of confidence is only avaialbe for English
                 uri = doc['metadata']['source']
                 name = doc['metadata']['title']
                 reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
@@ -916,21 +1010,25 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
         for i, document in enumerate(relevant_documents):
             print(f'## Document {i+1}: {document}')
 
-            name = document.metadata['name']
-            page = document.metadata['page']
-            uri = document.metadata['uri']
+            name = document[0].metadata['name']
+            page = document[0].metadata['page']
+            uri = document[0].metadata['uri']
+            excerpt = document[0].page_content
+            confidence = str(document[1])
+            assessed_score = str(document[1])
 
             doc_info = {
                 "rag_type": rag_type,
+                "confidence": confidence,
                 "metadata": {
                     "source": uri,
                     "title": name,
-                    "excerpt": document.page_content,
+                    "excerpt": excerpt,
                     "document_attributes": {
                         "_excerpt_page_number": page
                     }
                 },
-                "assessed_score": "",
+                "assessed_score": assessed_score,
             }
             relevant_docs.append(doc_info)
 
