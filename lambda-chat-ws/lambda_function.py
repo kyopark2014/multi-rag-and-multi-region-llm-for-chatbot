@@ -958,11 +958,16 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
             print(f'## Document {i+1}: {document}')
 
             name = document[0].metadata['name']
-            page = document[0].metadata['page']
-            uri = document[0].metadata['uri']
+            page = ""
+            if "page" in document[0].metadata:
+                page = document[0].metadata['page']
+            uri = ""
+            if "uri" in document[0].metadata:
+                uri = document[0].metadata['uri']
+            
             confidence = int(document[1])
             assessed_score = int(document[1])
-            
+
             if page:
                 doc_info = {
                     "rag_type": rag_type,
@@ -1002,25 +1007,42 @@ def retrieve_from_vectorstore(query, top_k, rag_type):
             print(f'## Document {i+1}: {document}')
 
             name = document[0].metadata['name']
-            page = document[0].metadata['page']
-            uri = document[0].metadata['uri']
+            page = ""
+            if "page" in document[0].metadata:
+                page = document[0].metadata['page']
+            uri = ""
+            if "uri" in document[0].metadata:
+                uri = document[0].metadata['uri']
+
             excerpt = document[0].page_content
             confidence = str(document[1])
             assessed_score = str(document[1])
 
-            doc_info = {
-                "rag_type": rag_type,
-                "confidence": confidence,
-                "metadata": {
-                    "source": uri,
-                    "title": name,
-                    "excerpt": excerpt,
-                    "document_attributes": {
-                        "_excerpt_page_number": page
-                    }
-                },
-                "assessed_score": assessed_score,
-            }
+            if page:
+                doc_info = {
+                    "rag_type": rag_type,
+                    "confidence": confidence,
+                    "metadata": {
+                        "source": uri,
+                        "title": name,
+                        "excerpt": excerpt,
+                        "document_attributes": {
+                            "_excerpt_page_number": page
+                        }
+                    },
+                    "assessed_score": assessed_score,
+                }
+            else:
+                doc_info = {
+                    "rag_type": rag_type,
+                    "confidence": confidence,
+                    "metadata": {
+                        "source": uri,
+                        "title": name,
+                        "excerpt": excerpt,
+                    },
+                    "assessed_score": assessed_score,
+                }
             relevant_docs.append(doc_info)
 
     return relevant_docs
