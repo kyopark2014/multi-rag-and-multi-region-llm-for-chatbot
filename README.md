@@ -20,19 +20,18 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 
 상세하게 단계별로 설명하면 아래와 같습니다.
 
-단계1: 브라우저를 이용하여 사용자가 CloudFront 주소로 접속하면, Amazon S3에서 HTML, CSS, JS등의 파일을 전달합니다. 이때 로그인을 수행하고 채팅 화면으로 진입합니다.
+단계1: 사용자가 채팅창에서 질문을 입력합니다. 
 
-단계2: Client는 사용자 아이디를 이용하여 '/history' API로 채팅이력을 요청합니다. 이 요청은 API Gateway를 거쳐서 lambda-history에 전달됩니다. 이후 DynamoDB에서 채팅 이력을 조회한 후에 다시 API Gateway와 lambda-history를 통해 사용자에게 전달합니다.
+단계2: [lambda(chat)](./lambda-chat-ws/lambda_function.py)은 기존 채팅이력을 DynamoDB에서 읽어오고, Assistant와의 상호작용(interaction)을 고려한 새로운 질문을 생성합니다.
 
-단계3: Client가 API Gateway로 WebSocket 연결을 시도하면, API Gateway를 거쳐서 lambda-chat-ws로 WebSocket connection event가 전달됩니다. 이후 사용자가 메시지를 입력하면, API Gateway를 거쳐서 lambda-chat-ws로 메시지가 전달됩니다.
+단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다.
 
-단계4: lambda-chat-ws은 사용자 아이디를 이용하여 DynamoDB의 기존 채팅이력을 읽어와서, 채팅 메모리에 저장합니다.
+단계4: Bedrock의 Claude LLM으로 질문을 전달합니다. 여기서는 On Demend 방식의 용량증대를 위하여 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보내게 됩니다. 
 
-단계5: lambda-chat-ws은 RAG에 관련된 문서(relevant docs)를 검색합니다.
+단계5: lambda(chat)은 LLM의 응답을 Diaglog로 저장하고, 사용자에게 답변을 전달합니다.
 
-단계6: lambda-chat-ws은 사용자의 질문(question), 채팅 이력(chat history), 관련 문서(relevant docs)를 Amazon Bedrock의 Enpoint로 전달합니다.
+단계6: 사용자는 답변을 확인하고, 필요시 Amazon S3에 저장된 문서를 Amazon CloudFront를 이용해 안전하게 읽어서 보여줍니다. 
 
-단계7: Amazon Bedrock의 사용자의 질문과 채팅이력이 전달되면, Anthropic의 Claude LLM을 이용하여 적절한 답변(answer)을 사용자에게 전달합니다. 이때, stream을 사용하여 답변이 완성되기 전에 답변(answer)를 사용자에게 보여줄 수 있습니다.
 
 이때의 Sequence diagram은 아래와 같습니다.
 
