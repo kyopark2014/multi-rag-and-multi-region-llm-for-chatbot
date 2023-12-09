@@ -12,6 +12,13 @@ Multiple LLM을 사용하게 되는 케이스에는 1) 다른 종류의 LLM을 �
 
 [Lambda-Parallel Processing](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)와 같이 Lambda에서는 Pipe()을 이용합니다. 
 
+### Multi-RAG 구현이슈
+
+질문후 답변까지의 시간은 chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
+
+또한, RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
+
+
 ## 아키텍처 개요
 
 전체적인 아키텍처는 아래와 같습니다. 사용자는 Amazon CloudFront를 통해 [Amazon S3](https://aws.amazon.com/ko/s3/)로 부터 웹페이지에 필요한 리소스를 읽어옵니다. 사용자가 Chatbot 웹페이지에 로그인을 하면, 사용자 아이디를 이용하여 Amazon DynamoDB에 저장된 대화 이력을 로드합니다. 이후 사용자가 메시지를 입력하면 WebSocket을 이용하여 LLM에 질의를 하게 되는데, DynamoDB로 부터 읽어온 대화 이력과 RAG를 제공하는 Vector Database로부터 읽어온 관련문서(Relevant docs)를 이용하여 적절한 응답을 얻습니다. 이러한 RAG 구현을 위하여 [LangChain을 활용](https://python.langchain.com/docs/get_started/introduction.html)하여 Application을 개발하였고, Chatbot을 제공하는 인프라는 [AWS CDK](https://aws.amazon.com/ko/cdk/)를 통해 배포합니다. 
