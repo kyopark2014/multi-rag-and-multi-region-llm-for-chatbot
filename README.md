@@ -329,8 +329,6 @@ relevant_documents = kendraRetriever.get_relevant_documents(
 )
 
 for i, document in enumerate(relevant_documents):
-    #print('document.page_content:', document.page_content)
-
     result_id = document.metadata['result_id']
     document_id = document.metadata['document_id']
     title = document.metadata['title']
@@ -416,10 +414,8 @@ def retrieve_process_from_RAG(conn, query, top_k, rag_type):
     relevant_docs = []
     if rag_type == 'kendra':
         rel_docs = retrieve_from_kendra(query=query, top_k=top_k)      
-        print('rel_docs (kendra): '+json.dumps(rel_docs))
     else:
         rel_docs = retrieve_from_vectorstore(query=query, top_k=top_k, rag_type=rag_type)
-        print(f'rel_docs ({rag_type}): '+json.dumps(rel_docs))
     
     if(len(rel_docs)>=1):
         for doc in rel_docs:
