@@ -51,11 +51,9 @@ RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하
 
 ## 주요 구성
 
-### Multi Region LLM을 LangChain으로 연결
+### Multi-Region LLM 환경 구성
 
-LangChain의 [Bedrock](https://python.langchain.com/docs/integrations/providers/bedrock)을 import하여 LLM과 application을 연결합니다. 여기서는 LLM Endpoint의 용량을 늘릴수 있도록 여러 Region의 LLM을 사용하고자 하며, 예제에서는 "us-east-1"과, "us-west-2"를 아래와 같이 정의하여 사용합니다. 
-
-[cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
+LangChain을 이용하여  Multi-Region에서 Anthropic Claud LLM의 환경을 구성할 수 있습니다. 여기에서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
 
 ```typescript
 const profile_of_LLMs = JSON.stringify([
