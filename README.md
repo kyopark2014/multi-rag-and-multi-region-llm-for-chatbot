@@ -311,7 +311,7 @@ kendraRetriever = AmazonKendraRetriever(
 )
 ```
 
-Kendra의 [get_relevant_documents()](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)을 이용하여 "top_k"개의 질문(query)과 관련된 문서들(Relevanct Documents)를 가져옵니다. 
+Kendra의 [get_relevant_documents()](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)을 이용하여 "top_k"개의 질문(query)과 관련된 문서들(Relevant Documents)를 가져옵니다. 
 
 ```python
 rag_type = "kendra"
