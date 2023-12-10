@@ -2,7 +2,7 @@
 
 사전학습(pretrained)되지 않은 데이터나 민감한 정보를 가지고 있어서 사전학습 할수 없는 기업의 중요한 데이터는 [RAG(Retrieval-Augmented Generation)](https://docs.aws.amazon.com/ko_kr/sagemaker/latest/dg/jumpstart-foundation-models-customize-rag.html)을 이용하여 LLM(Large Language Model)에서 이용될 수 있습니다. RAG는 지식저장소(Knowledge Store)의 연관성 검색(sementic search)을 이용해, 질문과 가장 가까운 문서를 [LLM의 context](https://aws.amazon.com/ko/blogs/tech/sagemaker-jumpstart-vector-store-llama2-chatbot/)로 활용합니다. 이러한 지식저장소에는 대표적인 In-memory vector store인 [Faiss](https://github.com/facebookresearch/faiss/wiki/Getting-started), persistent store이면서 대용량 병렬처리가 가능한 [Amazon OpenSearch](https://medium.com/@pandey.vikesh/rag-ing-success-guide-to-choose-the-right-components-for-your-rag-solution-on-aws-223b9d4c7280)와 완전관리형 검색서비스인 [Amazon Kendra](https://aws.amazon.com/ko/kendra/features/)가 있습니다. 또한, [2023년 re:Invent](https://reinvent.awsevents.com/)에서는 [Amazon Aurora](https://aws.amazon.com/ko/rds/aurora/), OpenSearch, Kendra뿐 아니라 Document DB, Mongo DB, Neptune등 거의 모든 데이터베이스의 RAG 지원이 발표되었으므로, 향후 다양한 Database가 RAG의 지식저장소로 활용될 수 있을것으로 기대됩니다.
 
-또한, 여러 리전에 있는 LLM을 이용할 수 있다면, [LLM의 request나 tokens수의 제한](https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html)을 경감시킬 수 있습니다. 본 게시글은 여러 리전(Multi-Region)의 [Claude LLM(Large Language Models)](https://aws.amazon.com/ko/bedrock/claude/)을 이용하여, 여러 종류의 [Knowledge Store](https://aws.amazon.com/ko/about-aws/whats-new/2023/09/knowledge-base-amazon-bedrock-models-data-sources/)를 RAG로 활용하는 방법을 설명합니다.
+Amazon Bedrock은 On-Demand방식과 Provisioned로  나누어 [허용 Request와 Tokens수](https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html)의 제한이 있습니다. On-Demend의 경우에 사용한 만큼만 과금하는 방식으로 LLM 어플리케이션 개발 및 초기 사업화시 Provisoned 방식 대비 유용합니다. Bedrock은 API 방식으로 Multi-Region을 지원하고 있으므로, Multi-Region을 이용하면, On-Demend 방식의 허용 용량 증대 효과가 있습니다. 본 게시글은 여러 리전(Multi-Region)의 [Claude LLM(Large Language Models)](https://aws.amazon.com/ko/bedrock/claude/)을 이용하여, 여러 종류의 [Knowledge Store](https://aws.amazon.com/ko/about-aws/whats-new/2023/09/knowledge-base-amazon-bedrock-models-data-sources/)를 RAG로 활용하는 방법을 설명합니다.
 
 ## Multi-RAG와 Multi-Region
 
@@ -10,7 +10,7 @@ Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함
 
 2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 또한, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 또한, 질문후 답변까지의 시간은 Chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
 
-Amazon Bedrock은 On-Demand방식과 Provisioned로  나누어 허용 Request와 Tokens수의 제한을 두고 있습니다. On-Demend의 경우에 사용한 만큼만 과금하는 방식으로 LLM 개발 및 초기 사업화시 Provisoned 방식 대비 유용합니다. Bedrock은 API 방식으로 Multi-Region을 지원하고 있으므로, Multi-Region을 이용하면, On-Demend 방식의 용량 증대 효과가 있습니다. .
+
 
 RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
 
