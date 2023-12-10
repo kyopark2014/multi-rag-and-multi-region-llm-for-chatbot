@@ -24,9 +24,9 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 단계2: [lambda(chat)](./lambda-chat-ws/lambda_function.py)은 기존 대화이력을 DynamoDB에서 읽어오고, Assistant와의 상호작용(interaction)을 고려한 새로운 질문을 생성합니다. 이때 DynamoDB에서 대화이력을 가져오는 동작은 최초 1회만 수행합니다.
 
-단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다. 각 RAG로 부터 수집된 관련된 문서들(Relevant Documents)들은 새로운 질문(Revised Question)과의 관련성에 따라 재배치 한 후에 하나의 context로 만듧니다.
+단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다. 각 RAG로 부터 수집된 관련된 문서들(Relevant Documents)은 새로운 질문(Revised Question)과의 관련성에 따라 재배치하여, 선택된 관련된 문서(Selected Relevant Document)를 생성합니다.
 
-단계4: Bedrock의 Claude LLM으로 새로운 질문과 RAG의 결과물로 만든 Context를 전달합니다. 이때, 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보냅니다.
+단계4: Bedrock의 Claude LLM으로 새로운 질문과 선택된 관련된 문서(Select Relevant Documents)를 전달합니다. 이때, 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보냅니다.
 
 단계5: lambda(chat)은 LLM의 응답을 Diaglog로 저장하고, 사용자에게 답변을 전달합니다.
 
