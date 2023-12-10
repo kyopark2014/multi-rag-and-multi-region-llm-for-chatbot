@@ -1105,13 +1105,14 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
     print('processing time for RAG: ', str(time.time() - start_time_for_rag))
     #print('relevant_docs: ', relevant_docs)
         
+    selected_relevant_docs = []
     if len(relevant_docs) >= 1:
-        relevant_docs = priority_search(revised_question, relevant_docs, bedrock_embeddings)
+        selected_relevant_docs = priority_search(revised_question, relevant_docs, bedrock_embeddings)
 
-    print('relevant_docs: ', json.dumps(relevant_docs))
+    print('selected_relevant_docs: ', json.dumps(selected_relevant_docs))
 
     relevant_context = ""
-    for document in relevant_docs:
+    for document in selected_relevant_docs:
         relevant_context = relevant_context + document['metadata']['excerpt'] + "\n\n"
     print('relevant_context: ', relevant_context)
 
@@ -1127,8 +1128,8 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
         sendErrorMessage(connectionId, requestId, err_msg)    
         raise Exception ("Not able to request to LLM")    
 
-    if len(relevant_docs)>=1 and enableReference=='true':
-        msg = msg+get_reference(relevant_docs)
+    if len(selected_relevant_docs)>=1 and enableReference=='true':
+        msg = msg+get_reference(selected_relevant_docs)
             
     if isDebugging==True:   # extract chat history for debug
         chat_history_all = extract_chat_history_from_memory()
