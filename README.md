@@ -6,7 +6,7 @@ Amazon Bedrock은 On-Demand 방식과 Provisioned로  나누어 [허용 Request�
 
 ## Multi-RAG와 Multi-Region
 
-Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다. 또한, 2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
+2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
 
 - Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 
 - [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치합니다.
@@ -119,7 +119,8 @@ else:
 
 ## RAG를 위한 Knowledge Store의 정의
 
-여기서는 Knowledge Store로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
+Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다.
+여기서는 지식저장소로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
 
 ### OpenSearch
 
@@ -416,25 +417,17 @@ def get_revised_question(llm, connectionId, requestId, query):
     return revised_question
 ```
 
-관련된 문서를 아래와 같이 Kendra와 Vector Store인 Faiss, OpenSearch에서 top_k개 만큼 가져옵니다. 
+### RAG의 병렬처리
 
-```python
-def retrieve_process_from_RAG(conn, query, top_k, rag_type):
-    relevant_docs = []
-    if rag_type == 'kendra':
-        rel_docs = retrieve_from_kendra(query=query, top_k=top_k)      
-    else:
-        rel_docs = retrieve_from_vectorstore(query=query, top_k=top_k, rag_type=rag_type)
-    
-    if(len(rel_docs)>=1):
-        for doc in rel_docs:
-            relevant_docs.append(doc)    
-    
-    conn.send(relevant_docs)
-    conn.close()
-```
+관련된 문서를 아래와 같이 Kendra와 Vector Store인 Faiss, OpenSearch에서 top_k개 만큼 가져옵니다. 이때, RAG 동작을 병렬화하면 속도를 개선할 수 있습니다. 
 
-검색을 병렬화하면 속도를 개선할 수 있습니다. 아래와 multiprocessing을 이용해 여러개의 thread를 생성하여 검색하고 결과는 Pipe를 이용하여 얻습니다.
+실행시간을 단축하기 위하여 Multi Thread를 사용합니다. [Lambda의 Multi thread](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)을 사용하므로써 연속적인 작업(sequencial job)을 병렬처리 할 수 있습니다.
+
+[Lambda-Parallel Processing](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)와 같이 Lambda에서는 Pipe()을 이용합니다. 
+
+따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
+
+아래와 multiprocessing을 이용해 여러개의 thread를 생성하여 검색하고 결과는 Pipe를 이용하여 얻습니다.
 
 ```python
 from multiprocessing import Process, Pipe
@@ -461,6 +454,11 @@ if (len(rel_docs) >= 1):
 for process in processes:
     process.join()
 ```
+
+### RAG의 결과를 Priority Search를 이용해 정리하기
+
+RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
+
 
 
 여기서는 3개의 Vector Store를 사용하고 top_k씩 가져오므로 최대 3xtop_k의 문서를 얻게 됩니다. 문서가 너무 많으면 context window의 범위를 넘을 수 있으므로 여기서 가장 관련이 있는 top_k만을 아래와 같이 선정합니다. 아래에서는 Faiss의 similarity search로 top_k의 문서중에 score가 200이하 인것만을 관련된 문서로 선택하여 사용하고 있습니다.
