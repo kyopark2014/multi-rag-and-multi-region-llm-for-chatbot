@@ -540,7 +540,7 @@ def get_reference(docs):
 
 
 ### CDK를 이용한 인프라 설치
-[인프라 설치](https://github.com/kyopark2014/question-answering-chatbot-using-RAG-based-on-LLM/blob/main/deployment.md)에 따라 CDK로 인프라 설치를 진행합니다. 
+[인프라 설치](./deployment.md)에 따라 CDK로 인프라 설치를 진행합니다. 
 
 
 ### 실행결과
