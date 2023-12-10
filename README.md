@@ -8,7 +8,7 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 - 2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 RAG의 숫자만큼 관련 문서(Relevant Documents)의 수가 증가하므로 Claud2.1을 활용하더라도 RAG 문서의 숫자를 제한할 필요가 있습니다. 또한 RAG의 용도 또는 RAG에 저장된 데이터의 차이에 따라서 어떤 RAG는 원했던 관련된 문서를 주지 못하거나 관련성이 적은 문서를 줄 수 있고, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에 큰 영향을 주므로, 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치할 수 있어야 합니다. 따라서, 각 RAG가 조회한 관련 문서들을 context window 크기에 맞게 선택하고, 중요도에 따라 순서대로 선택하여 하나의 context로 만들수 있어야 합니다. 
 
-- Chatbot에서 질문후 답변까지의 시간은 사용성에 매우 중요한 요소입니다. 여러개의 RAG를 순차적으로 Query를 하면, RAG의 숫자만큼 지연이 늘어나게 됩니다. 따라서, RAG에 대한 Query를 병렬로 수행하여 지연시간을 단축할 수 있어야 합니다. 
+- Chatbot에서 질문후 답변까지의 시간은 사용성에 매우 중요한 요소입니다. 여러개의 RAG를 순차적으로 Query를 하면, RAG의 숫자만큼 지연시간이 늘어나게 됩니다. 따라서, RAG에 대한 Query를 병렬로 수행하여 지연시간을 단축할 수 있어야 합니다. 
 
 - Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 있지만, 동적으로 사용하기 위한 로드밸런싱(load balancing)이 필요합니다. 
 
