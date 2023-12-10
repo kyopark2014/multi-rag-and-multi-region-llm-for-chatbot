@@ -83,5 +83,9 @@ cdk deploy --all
 
 
 
-9) WebUrl를 선택하여 브라우저로 접속합니다.
+9) 11.	Output의 WebUrlformultiragchatbot에 있는 URL을 복사하여 웹 브라우저로 접속합니다. User Id로 적당한 이름을 넣고, Conversation Type로는 "2. Question/Answering (RAG)"를 선택합니다.
+  
+  
+![noname](./images/menu-input.png)
+
 
