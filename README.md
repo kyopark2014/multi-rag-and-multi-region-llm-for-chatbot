@@ -293,13 +293,12 @@ def store_document_for_kendra(path, s3_file_name, requestId):
     )
 ```    
 
-Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정하고, "top_k"만큼의 Relevant Document를 가져오도록 설정합니다.
+Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정합니다.
 
 ```python
 from langchain.retrievers import AmazonKendraRetriever
 kendraRetriever = AmazonKendraRetriever(
     index_id=kendraIndex, 
-    top_k=top_k, 
     region_name=kendra_region,
     attribute_filter = {
         "EqualsTo": {      
@@ -353,7 +352,7 @@ return relevant_docs
 ```
 
 
-### 관련된 문서를 포함한 RAG 구현
+### 대화이력을 고려하여 새로운 질문 생성하기
 
 Assistent와 상호작용(interacton)을 위하여 대화이력을 이용해 사용자의 질문을 새로운 질문(revised_question)으로 업데이트합니다. 이때 사용하는 prompt는 한국어와 영어로 나누어 아래처럼 적용하고 있습니다. 
 
@@ -401,18 +400,10 @@ def get_revised_question(llm, connectionId, requestId, query):
     return revised_question
 ```
 
-### RAG의 병렬처리
+### Multi-RAG를 병렬로 조회하기
 
-관련된 문서를 아래와 같이 Kendra와 Vector Store인 Faiss, OpenSearch에서 top_k개 만큼 가져옵니다. 이때, RAG 동작을 병렬화하면 속도를 개선할 수 있습니다. 
-
-실행시간을 단축하기 위하여 Multi Thread를 사용합니다. [Lambda의 Multi thread](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)을 사용하므로써 연속적인 작업(sequencial job)을 병렬처리 할 수 있습니다.
-
-[Lambda-Parallel Processing](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)와 같이 Lambda에서는 Pipe()을 이용합니다. 
-
-따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
-
-아래와 multiprocessing을 이용해 여러개의 thread를 생성하여 검색하고 결과는 Pipe를 이용하여 얻습니다.
-
+Kendra와 Vector Store인 Faiss, OpenSearch에서 "top_k"개 만큼 질문(query)와 관련된 문서를 가져옵니다. 병렬로 조회하기 위하여, [Lambda의 Multi thread](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)를 이용합니다. 이때, 병렬 처리된 데이터를 처리할때에는 
+[Lambda-Parallel Processing](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)와 같이 [Pipe()](https://docs.python.org/3/library/multiprocessing.html)을 이용합니다. 이와같이 multiprocessing을 이용해해 여러개의 thread를 동시에 실행함으로써, RAG로 인한 지연시간을 최소화할 수 있습니다. 
 
 ```python
 from multiprocessing import Process, Pipe
@@ -440,18 +431,15 @@ for process in processes:
     process.join()
 ```
 
-### RAG의 결과를 Priority Search를 이용해 정리하기
+### RAG의 결과를 신뢰도에 따라 정렬하기
 
-RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
+RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 방식에 따라서는 결과의 신뢰를 나타내는 score를 주기도 하는데, RAG마다 결과를 측정하는 방법이 달라서, RAG의 문서를 신뢰도에 맞추기 위해 다시 관련된 문서를 평가하고 재배치하는 과정이 필요합니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 프로세스와 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
 
-RAG 방식에 따라서는 결과의 신뢰를 나타내는 score를 주기도 하는데, RAG마다 결과를 측정하는 방법이 달라서, RAG의 문서를 신뢰도에 맞추기 위해 다시 관련된 문서를 평가하고 재배치하는 과정이 필요합니다. 
-
-
-여기서는 3개의 Vector Store를 사용하고 top_k씩 가져오므로 최대 3xtop_k의 문서를 얻게 됩니다. 문서가 너무 많으면 context window의 범위를 넘을 수 있으므로 여기서 가장 관련이 있는 top_k만을 아래와 같이 선정합니다. 아래에서는 Faiss의 similarity search로 top_k의 문서중에 score가 200이하 인것만을 관련된 문서로 선택하여 사용하고 있습니다.
+아래의 check_confidence()와 같이 Faiss, OpenSearch, Kendra가 검색한 관련된 문서를 Faiss에 문서로 등록합니다. 이후 Faiss의 similarity search를 이용하여, top_k의 문서를 다시 고르는데, assessed_score가 200이하인 문서를 선택하여 선택된 관련 문서(selected_relevant_docs)로 활용합니다.
 
 ```python
 if len(relevant_docs) >= 1:
-    relevant_docs = check_confidence(revised_question, relevant_docs, bedrock_embeddings)
+    selected_relevant_docs = check_confidence(revised_question, relevant_docs, bedrock_embeddings)
 
 def check_confidence(query, relevant_docs, bedrock_embeddings):
     excerpts = []
@@ -490,7 +478,7 @@ def check_confidence(query, relevant_docs, bedrock_embeddings):
     return docs
 ```
 
-관련된 문서들은 아래와 같이 하나의 context로 모읍니다. 이후 PROMPT에 relevant_context와 새로운 질문(revised_question)을 넣어서 LLM에 답변을 요청합니다. 답변은 stream으로 받아서 아래처럼 client로 전달합니다.
+선택된 관련된 문서들을 아래와 같이 하나의 context로 모읍니다. 이후 RAG용 PROMPT에 새로운 질문(revised_question)과 선택된 관련 문서(selected_relevant_docs)을 함께 넣어서 LLM에 답변을 요청합니다. 이후 답변은 stream으로 화면에 보여줍니다.
 
 ```python
 relevant_context = ""
@@ -500,8 +488,6 @@ for document in relevant_docs:
 stream = llm(PROMPT.format(context=relevant_context, question=revised_question))
 msg = readStreamMsg(connectionId, requestId, stream)
 ```
-
-
 
 
 ### Reference 표시하기
