@@ -516,8 +516,8 @@ def get_reference(docs):
         if "document_attributes" in doc['metadata']:
             if "_excerpt_page_number" in doc['metadata']['document_attributes']:
                 page = doc['metadata']['document_attributes']['_excerpt_page_number']
-                uri = doc['metadata']['source']
-                name = doc['metadata']['title']
+        uri = doc['metadata']['source']
+        name = doc['metadata']['title']
         if page: 
             reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
         else:
