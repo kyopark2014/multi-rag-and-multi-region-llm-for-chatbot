@@ -882,14 +882,36 @@ def priority_search(query, relevant_docs, bedrock_embeddings):
     return docs
 
 def get_reference(docs):
-    reference = "\n\nFrom\n"
+    if kendra_method == 'kendra_retriever':
+        reference = get_reference_using_kendra_retriever(docs)
+    else:   # custom_retriever
+        reference = get_reference_using_custom_retriever(docs)
+        
+    return reference
+
+def get_reference_using_kendra_retriever(docs):
+    reference = "\n\nFrom\n"    
+    for i, doc in enumerate(docs):
+        print(f'## Document {i+1}: {doc}')
+                    
+        page = ""
+        if "document_attributes" in doc['metadata']:
+            if "_excerpt_page_number" in doc['metadata']['document_attributes']:
+                page = doc['metadata']['document_attributes']['_excerpt_page_number']
+                uri = doc['metadata']['source']
+                name = doc['metadata']['title']
+
+        if page: 
+            reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+        else:
+            reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+    return reference
+
+def get_reference_using_custom_retriever(docs):
+    reference = "\n\nFrom\n"    
     for i, doc in enumerate(docs):
         if doc['rag_type'] == 'kendra':
-            if doc['api_type'] == 'kendraRetriever': # provided by kendraRetriever from langchain
-                    name = doc['metadata']['title']
-                    uri = doc['metadata']['source']
-                    reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
-            elif doc['api_type'] == 'retrieve': # Retrieve. socre of confidence is only avaialbe for English
+            if doc['api_type'] == 'retrieve': # Retrieve. socre of confidence is only avaialbe for English
                 uri = doc['metadata']['source']
                 name = doc['metadata']['title']
                 reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
@@ -910,14 +932,14 @@ def get_reference(docs):
                     if "document_attributes" in doc['metadata']:
                         if "_excerpt_page_number" in doc['metadata']['document_attributes']:
                             page = doc['metadata']['document_attributes']['_excerpt_page_number']
-                                                
+                                                    
                     if page: 
                         reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name}({confidence})</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
                     else:
                         reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} ({confidence})</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
         elif doc['rag_type'] == 'opensearch' or doc['rag_type'] == 'faiss':
             print(f'## Document {i+1}: {doc}')
-                
+                    
             page = ""
             if "document_attributes" in doc['metadata']:
                 if "_excerpt_page_number" in doc['metadata']['document_attributes']:
@@ -928,10 +950,9 @@ def get_reference(docs):
             if page: 
                 reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
             else:
-                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
-        
+                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"                
     return reference
-
+            
 def retrieve_from_vectorstore(query, top_k, rag_type):
     print('query: ', query)
 
