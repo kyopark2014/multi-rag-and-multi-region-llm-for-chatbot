@@ -839,7 +839,7 @@ def extract_relevant_doc_for_kendra(query_id, apiType, query_result):
             }
     return doc_info
 
-def check_confidence(query, relevant_docs, bedrock_embeddings):
+def priority_search(query, relevant_docs, bedrock_embeddings):
     excerpts = []
     for i, doc in enumerate(relevant_docs):
         # print('doc: ', doc)
@@ -1106,7 +1106,7 @@ def get_answer_using_RAG(llm, text, conv_type, connectionId, requestId, bedrock_
     #print('relevant_docs: ', relevant_docs)
         
     if len(relevant_docs) >= 1:
-        relevant_docs = check_confidence(revised_question, relevant_docs, bedrock_embeddings)
+        relevant_docs = priority_search(revised_question, relevant_docs, bedrock_embeddings)
 
     print('relevant_docs: ', json.dumps(relevant_docs))
 
