@@ -551,6 +551,7 @@ def get_reference(docs):
 
 ![image](./images/result-lex.png)
 
+대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 재시도 합니다.
 
 ## 리소스 정리하기 
 
@@ -565,10 +566,10 @@ def get_reference(docs):
 cd ~/environment/multi-rag-and-multi-region-llm-for-chatbot/cdk-multi-rag-chatbot/ && cdk destroy --all
 ```
 
-대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 재시도 합니다.
-
 
 ## 결론
+
+다양한 지식저장소(Knowledge Store)를 이용하여 RAG를 구성할 수 있도록 Multi-RAG를 구현하는 방법에 대해 설명하였습니다. Multi-RAG로 얻어진 여러 RAG의 관련 문서(Relevant Documents)들은 질문에 대한 관련도(similarity)에 따라 정렬하였고, 지연시간을 최소화하기 위하여 병렬처리하는 방법을 소개 하였습니다. 또한 Multi-Region 환경을 구성하여 여러 리전의 LLM을 효율적으로 사용하여 On-Demend 방식의 용량 이슈를 완화할 수 있었습니다. 본 게시글에서 사용한 Architecture는 서버리스 서비스들을 이용하였으므로, RAG를 이용한 LLM 어플리케이션을 편리하게 개발하고 유지보수에 대한 부담없이 운영할 수 있습니다. 근래에 기업이 보유한 데이터를 잘 활용하기 위하여 Amazon Q와 같은 서비스들이 많이 활용되고 있습니다. 본 게시글에서 제안하는 Multi-RAG와 Multi-Region 구조는 기업의 다양한 데이터베이스를 통합하여, 업무를 간소화하고 빠른 의사결정 및 문제를 해결할 수 있는 어플리케이션 개발에 활용될 수 있을것으로 보여집니다.
 
 
 ## 실습 코드 및 도움이 되는 참조 블로그
