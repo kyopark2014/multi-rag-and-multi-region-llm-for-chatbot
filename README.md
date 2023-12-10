@@ -42,7 +42,9 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 ### Multi-Region 환경 구성
 
-Multi-Region 환경에서 lambda(chat)으로 들어온 event를 각각의 LLM으로 분산 할 수 있어야 합니다. [ALB/NLB](https://docs.aws.amazon.com/ko_kr/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html)은 Regional service이므로 이런 용도에 맞지 않으며, [Fan-out을 제공하는 SNS](https://docs.aws.amazon.com/sns/latest/dg/sns-common-scenarios.html)는 질문후 답변까지의 시간이 추가될 수 있습니다. 따라서 Multi-Region에 맞게 LangChain의 LLM client를 재설정하는 방식으로 [Round-robin scheduling](https://en.wikipedia.org/wiki/Round-robin_scheduling)을 구현합니다. 여기서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
+Multi-Region 환경에서 lambda(chat)으로 들어온 event를 각각의 LLM으로 분산 할 수 있어야 합니다. [ALB/NLB](https://docs.aws.amazon.com/ko_kr/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html)은 Regional service이므로 이런 용도에 맞지 않으며, [Fan-out을 제공하는 SNS](https://docs.aws.amazon.com/sns/latest/dg/sns-common-scenarios.html)는 질문후 답변까지의 시간이 추가될 수 있습니다. 따라서 Multi-Region에 맞게 LangChain의 LLM client를 재설정하는 방식으로 [Round-robin scheduling](https://en.wikipedia.org/wiki/Round-robin_scheduling)을 구현합니다. 여기서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. 
+
+[cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 여기서는 "us-west-2"와, "us-east-1"의 Claude2.1을 사용할 수 있도록 profile을 설정하고 있습니다. 
 
 ```typescript
 const profile_of_LLMs = JSON.stringify([
@@ -61,7 +63,7 @@ const profile_of_LLMs = JSON.stringify([
 ]);
 ```
 
-사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 bedrock client를 정의한 후에, LangChain으로 Bedrock과 BedrockEmbeddings를 정의합니다. LLM의 region과 medelId는 LLM profile로 관리되고, event마다 다른 profile이 선택됩니다. 
+사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 [boto3로 bedrock client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html)를 정의한 후에, LangChain으로 [Bedrock](https://api.python.langchain.com/en/latest/llms/langchain.llms.bedrock.Bedrock.html?highlight=bedrock#)과 [BedrockEmbeddings](https://api.python.langchain.com/en/latest/embeddings/langchain.embeddings.bedrock.BedrockEmbeddings.html)를 llm과 embeddings을 정의합니다. LLM의 리전(region)과 모델(medelId) 정보는 LLM profile로 관리되므로, lambda(chat)에 전달되는 event는 매번 다른 profile을 이용하게 됩니다.
 
 ```python
 profile_of_LLMs = json.loads(os.environ.get('profile_of_LLMs'))
@@ -129,7 +131,7 @@ vectorstore_opensearch = OpenSearchVectorSearch(
 )
 ```
 
-OpenSearch를 이용한 vector store에 데이터는 아래와 같이 add_documents()로 넣을 수 있습니다. index에 userId를 넣으면, 필용시 특정 사용자가 올린 문서만을 참조할 수 있습니다. 
+데이터는 아래와 같이 [add_documents()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html?highlight=opensearchvectorsearch#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.add_documents)로 넣을 수 있습니다. index에 userId를 넣으면, 필용시 특정 사용자가 올린 문서만을 참조할 수 있습니다. 
 
 ```python
 def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
@@ -143,7 +145,7 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
     new_vectorstore.add_documents(docs)    
 ```
 
-관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 메타정보로서 추가할 수 있습니다. OpenSearch에 Query를 할때에 [similarity_search_with_score](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.similarity_search_with_score)를 사용하면, 결과값의 신뢰도를 score로 구할 수 있는데, "0.008877229"와 같이 소숫점을 가지는 숫자로 표현됩니다. 
+관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지 번호(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 메타 정보로 추가할 수 있습니다. OpenSearch에 Query를 할때에 [similarity_search_with_score](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.similarity_search_with_score)를 사용하면, 결과값의 신뢰도를 score로 구할 수 있는데, "0.008877229"와 같이 소숫점을 가지는 숫자로 표현됩니다. 
 
 ```python
 relevant_documents = vectorstore_opensearch.similarity_search_with_score(
@@ -180,12 +182,12 @@ return relevant_docs
 
 ### Faiss
 
-아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 add_documents를 이용해 추가합니다. Faiss는 in-memory vectore store로 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
+아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 [add_documents()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.faiss.FAISS.html?highlight=faiss#langchain.vectorstores.faiss.FAISS.add_documents)를 이용해 추가합니다. Faiss는 in-memory vectore store이므로, Faiss에 저장한 문서는 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
 
 ```python
 if isReady == False:
     embeddings = bedrock_embeddings
-    vectorstore_faiss = FAISS.from_documents( # create vectorstore from a document
+    vectorstore_faiss = FAISS.from_documents( 
         docs,  # documents
         embeddings  # embeddings
     )
@@ -227,7 +229,7 @@ for i, document in enumerate(relevant_documents):
 
 ### Kendra
 
-Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket를 이용합니다. 경로를 생성할 때에 파일명은 URL encoding을 하여야 합니다. 소스의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있습니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
+Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket를 이용합니다. 문서의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있는데, 파일명은 URL encoding을 하여야 합니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
 
 
 ```python
