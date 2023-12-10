@@ -14,15 +14,6 @@ Amazon Bedrock은 On-Demand 방식과 Provisioned로  나누어 [허용 Request�
 
 Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 있습니다. 이를 동적으로 할당하기 위한 로드밸런서가 필요합니다. 
 
-
-RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
-
-실행시간을 단축하기 위하여 Multi Thread를 사용합니다. [Lambda의 Multi thread](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)을 사용하므로써 연속적인 작업(sequencial job)을 병렬처리 할 수 있습니다.
-
-[Lambda-Parallel Processing](https://aws.amazon.com/ko/blogs/compute/parallel-processing-in-python-with-aws-lambda/)와 같이 Lambda에서는 Pipe()을 이용합니다. 
-
-따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
-
 ## 아키텍처 개요
 
 전체적인 아키텍처는 아래와 같습니다. Web으로 제공되는 대화창에서 메시지를 입력하면 Websocket 방식을 지원하는 API Gateway를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에서 메시지를 처리합니다. Multi-RAG로 Faiss, OpenSearch, Kendra를 사용합니다. Faiss는 lambda(chat)의 메모리를 활용하고, Amazon Kendra와 OpenSearch는 [AWS CDK](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/home.html)를 이용해 설치합니다. 대화이력은 [Amazon DynamoDB](https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/GettingStartedDynamoDB.html)을 이용해 json 포맷으로 저장하고 관리합니다. Multi-Region으로는 Virginia(us-east-1)과 Oregon(us-west-2) 리전를 활용하는데, AWS의 다른 Bedrock 리전을 추가하여 사용할 수 있습니다.
