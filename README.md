@@ -6,11 +6,10 @@ Amazon Bedrock은 On-Demand와 Provisioned 방식으로  나누어 [허용 Reque
 
 ## Multi-RAG와 Multi-Region
 
-2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
+2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 RAG의 숫자만큼 관련 문서(Relevant Documents)의 수가 증가하므로 Claud2.1을 활용하더라도 RAG 문서의 숫자를 제한할 필요가 있습니다. 또한 RAG의 용도 또는 RAG에 저장된 데이터의 차이에 따라서 어떤 RAG는 원했던 관련된 문서를 주지 못하거나, 관련성이 적은 문서를 줄 수 있으며, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에 큰 영향을 주므로, 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치할 수 있어야 합니다. 
 
-- Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 
-- [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치합니다.
-- 질문후 답변까지의 시간은 Chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 지연시간을 줄이기 위한 여러개의 RAG에 대한 Query를 동시에 할 수 있어야 합니다. 
+
+질문후 답변까지의 시간은 Chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 지연시간을 줄이기 위한 여러개의 RAG에 대한 Query를 동시에 할 수 있어야 합니다. 
 
 Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 있습니다. 이를 동적으로 할당하기 위한 로드밸런서가 필요합니다. 
 
@@ -420,6 +419,7 @@ def get_revised_question(llm, connectionId, requestId, query):
 
 아래와 multiprocessing을 이용해 여러개의 thread를 생성하여 검색하고 결과는 Pipe를 이용하여 얻습니다.
 
+
 ```python
 from multiprocessing import Process, Pipe
 
@@ -450,6 +450,7 @@ for process in processes:
 
 RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 조회시 나오는 score는 가장 관련이 높은 문서를 고를때에 유용하게 사용할 수 있지만, 종류가 다른 RAG 방식들은 다른 score를 주므로 Multi-RAG에서 활용하기 어렵습니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
 
+RAG 방식에 따라서는 결과의 신뢰를 나타내는 score를 주기도 하는데, RAG마다 결과를 측정하는 방법이 달라서, RAG의 문서를 신뢰도에 맞추기 위해 다시 관련된 문서를 평가하고 재배치하는 과정이 필요합니다. 
 
 
 여기서는 3개의 Vector Store를 사용하고 top_k씩 가져오므로 최대 3xtop_k의 문서를 얻게 됩니다. 문서가 너무 많으면 context window의 범위를 넘을 수 있으므로 여기서 가장 관련이 있는 top_k만을 아래와 같이 선정합니다. 아래에서는 Faiss의 similarity search로 top_k의 문서중에 score가 200이하 인것만을 관련된 문서로 선택하여 사용하고 있습니다.
