@@ -24,27 +24,25 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 단계2: [lambda(chat)](./lambda-chat-ws/lambda_function.py)은 기존 대화이력을 DynamoDB에서 읽어오고, Assistant와의 상호작용(interaction)을 고려한 새로운 질문(Revised Question)을 생성합니다. 이때 DynamoDB에서 대화이력을 가져오는 동작은 최초 1회만 수행합니다.
 
-단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다. 각 RAG로 부터 수집된 관련된 문서들(Relevant Documents)은 새로운 질문(Revised Question)과의 관련성에 따라 재배치하여, 선택된 관련된 문서(Selected Relevant Document)를 생성합니다.
+단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다. 각 RAG로 부터 수집된 관련된 문서들(Relevant Documents)은 새로운 질문(Revised Question)과의 관련성에 따라 재배치하여, 선택된 관련된 문서(Selected Relevant Documents)를 생성합니다.
 
-단계4: Bedrock의 Claude LLM으로 새로운 질문과 선택된 관련된 문서(Select Relevant Documents)를 전달합니다. 이때, 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보냅니다.
+단계4: Bedrock의 Claude LLM에 새로운 질문과 선택된 관련된 문서(Select Relevant Documents)를 전달합니다. 이때, 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보냅니다.
 
-단계5: lambda(chat)은 LLM의 응답을 Diaglog로 저장하고, 사용자에게 답변을 전달합니다.
+단계5: lambda(chat)은 LLM의 응답을 Dialog로 저장하고, 사용자에게 답변을 전달합니다.
 
-단계6: 사용자는 답변을 확인하고, 필요시 Amazon S3에 저장된 문서를 Amazon CloudFront를 이용해 안전하게 읽어서 보여줍니다. 
+단계6: 사용자는 답변을 확인하고, 필요시 Amazon S3에 저장된 문서를 Amazon CloudFront를 이용해 안전하게 보여줍니다. 
 
 
-이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 지식 저장소에 대한 RAG query 동작을 수행합니다. 또한 event는 us-east-1과 us-west-2의 LLM을 이용해 요청을 처리합니다. DynamoDB로 부터 대화이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
+이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 지식 저장소에 대한 RAG query 동작을 수행합니다. DynamoDB로 부터 대화이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
 
 <img src="./images/sequence.png" width="800">
 
 
 ## 주요 구성
 
-### Multi-Region LLM 환경 구성
+### Multi-Region 환경 구성
 
-ALB/NLB은 Regional service이므로 이런 용도에 맞지 않으며, 
-
-LangChain을 이용하여  Multi-Region에서 Anthropic Claude LLM의 환경을 구성할 수 있습니다. 여기에서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
+Multi-Region의 LLM을 활용하기 위해, 로드밸런서를 구현하여야 합니다. ALB/NLB은 Regional service이므로 이런 용도에 맞지 않으며, [Fan-out을 제공하는 SNS](https://docs.aws.amazon.com/sns/latest/dg/sns-common-scenarios.html)는 질문후 답변까지의 시간이 추가될 수 있습니다. 따라서 Multi-Region에 맞게 LangChain의 LLM client를 재설정하는 방식으로 [Round-robin scheduling](https://en.wikipedia.org/wiki/Round-robin_scheduling)을 구현합니다. 이때, "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
 
 ```typescript
 const profile_of_LLMs = JSON.stringify([
