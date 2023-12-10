@@ -549,7 +549,7 @@ def get_reference(docs):
 
 이후 채팅창에 "보일러가 갑자기 꺼졌어요. A396 에러가 나는데 어떻게 해야할까요?"라고 입력한 후에 결과를 확인합니다. "From" 이하로 아래와 같이 Faiss, Kendra, OpenSearch로 검색한 정보가 표시됩니다. 여기서 오른쪽 괄호 안에는 Faiss로 얻은 similarity search 결과가 점수로 표시되는데 점수가 낮을수록 더 신뢰도가 있습니다. 
 
-![image](./images/result-lex.png)
+![image](./images/result-error-code.png)
 
 대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 질문을 재입력합니다. 또한, From에 Kendra 결과가 보여지지 않으면, index 작업이 끝나지 않은것이므로 수분후에 재시도 합니다.
 
