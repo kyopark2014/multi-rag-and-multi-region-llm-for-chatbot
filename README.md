@@ -4,14 +4,13 @@
 
 Amazon Bedrock은 On-Demand와 Provisioned 방식으로  나누어 [허용 Request와 Tokens수](https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html)의 제한이 있습니다. On-Demend의 경우에 사용한 만큼만 과금하는 방식으로 LLM 어플리케이션 개발 및 초기 사업화시 Provisoned 방식 대비 유용합니다. Bedrock은 API 방식으로 Multi-Region을 지원하고 있으므로, Multi-Region을 이용하면, On-Demend 방식의 허용 용량 증대 효과가 있습니다. 본 게시글은 여러 리전(Multi-Region)의 [Claude LLM(Large Language Models)](https://aws.amazon.com/ko/bedrock/claude/)을 이용하여, 여러 종류의 [Knowledge Store](https://aws.amazon.com/ko/about-aws/whats-new/2023/09/knowledge-base-amazon-bedrock-models-data-sources/)를 RAG로 활용하는 방법을 설명합니다.
 
-## Multi-RAG와 Multi-Region
+Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능을 구현할 수 있어야 합니다. 
 
-2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 RAG의 숫자만큼 관련 문서(Relevant Documents)의 수가 증가하므로 Claud2.1을 활용하더라도 RAG 문서의 숫자를 제한할 필요가 있습니다. 또한 RAG의 용도 또는 RAG에 저장된 데이터의 차이에 따라서 어떤 RAG는 원했던 관련된 문서를 주지 못하거나, 관련성이 적은 문서를 줄 수 있으며, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에 큰 영향을 주므로, 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치할 수 있어야 합니다. 
+- 2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 RAG의 숫자만큼 관련 문서(Relevant Documents)의 수가 증가하므로 Claud2.1을 활용하더라도 RAG 문서의 숫자를 제한할 필요가 있습니다. 또한 RAG의 용도 또는 RAG에 저장된 데이터의 차이에 따라서 어떤 RAG는 원했던 관련된 문서를 주지 못하거나 관련성이 적은 문서를 줄 수 있으며, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에 큰 영향을 주므로, 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치할 수 있어야 합니다. 따라서, 각 RAG가 조회한 관련 문서들을 context window 크기에 맞게 선택하고, 중요도에 따라 순서대로 선택하여 하나의 context로 만들수 있어야 합니다. 
 
+- Chatbot에서 질문후 답변까지의 시간은 사용성에 매우 중요한 요소입니다. 여러개의 RAG를 순차적으로 Query를 하면, RAG의 숫자만큼 지연이 늘어나게 됩니다. 따라서, RAG에 대한 Query를 병렬로 수행하여 지연시간을 단축할 수 있어야 합니다. 
 
-질문후 답변까지의 시간은 Chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 지연시간을 줄이기 위한 여러개의 RAG에 대한 Query를 동시에 할 수 있어야 합니다. 
-
-Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 있습니다. 이를 동적으로 할당하기 위한 로드밸런서가 필요합니다. 
+- Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 있지만, 동적으로 사용하기 위한 로드밸런싱(load balancing)이 필요합니다. 
 
 ## 아키텍처 개요
 
@@ -42,6 +41,8 @@ Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 �
 ## 주요 구성
 
 ### Multi-Region LLM 환경 구성
+
+ALB/NLB은 Regional service이므로 이런 용도에 맞지 않으며, 
 
 LangChain을 이용하여  Multi-Region에서 Anthropic Claude LLM의 환경을 구성할 수 있습니다. 여기에서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
 
