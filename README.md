@@ -531,7 +531,9 @@ def get_reference(docs):
 
 ### 실행결과
 
+Multi-RAG의 동작을 확인하기 위하여 [Amazon_Lex.pdf](./contents/Amazon_Lex.pdf) 파일을 다운로드 한 후에, 채팅 화면 하단의 파일 아이콘을 선택하여 업로드합니다. 이후 채팅창에 "Amazon Lex의 자연어 처리 방식에 대해 설명해주세요."라고 입력한 후에 결과를 확인합니다.
 
+![image](./images/result-lex.png)
 
 
 ## 리소스 정리하기 
