@@ -61,7 +61,7 @@ const profile_of_LLMs = JSON.stringify([
 ]);
 ```
 
-사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 bedrock client를 정의한 후에, LangChain으로 Bedrock과 BedrockEmbeddings를 정의합니다. 
+사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 bedrock client를 정의한 후에, LangChain으로 Bedrock과 BedrockEmbeddings를 정의합니다. LLM의 region과 medelId는 LLM profile로 관리되고, event마다 다른 profile이 선택됩니다. 
 
 ```python
 profile_of_LLMs = json.loads(os.environ.get('profile_of_LLMs'))
@@ -96,7 +96,7 @@ bedrock_embeddings = BedrockEmbeddings(
 )      
 ```
 
-Lambda(chat)은 event를 받을때마다 아래와 같이 새로운 LLM으로 교차하게되므로, 하나의 region에서 LLM을 처리할때보다 용량을 N개의 region에서 LLM을 사용하게 되면 N배의 용량이 증가하게 됩니다. 
+아래와 같이 Lambda(chat)은 event를 받을때마다 아래와 같이 새로운 LLM으로 교차하게되므로, N개의 리전을 활용하면, N배의 용량이 증가하게 됩니다. 
 
 ```python
 if selected_LLM >= number_of_LLMs - 1:
@@ -106,7 +106,7 @@ else:
 ```
 
 
-## RAG를 위한 Knowledge Store의 정의
+## Knowledge Store에서 관련된 문서 가져오기
 
 Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다.
 여기서는 지식저장소로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
@@ -123,21 +123,19 @@ vectorstore_opensearch = OpenSearchVectorSearch(
     is_aoss = False,
     ef_search = 1024, # 512(default )
     m = 48,
-    #engine = "faiss",  # default: nmslib
     embedding_function = bedrock_embeddings,
     opensearch_url = opensearch_url,
     http_auth = (opensearch_account, opensearch_passwd), # http_auth = awsauth,
 )
 ```
 
-OpenSearch를 이용한 vector store에 데이터는 아래와 같이 add_documents()로 넣을 수 있습니다. index에 userId를 넣으면, 검색할때에 특정 사용자가 올린 문서만을 참조할 수 있습니다. 
+OpenSearch를 이용한 vector store에 데이터는 아래와 같이 add_documents()로 넣을 수 있습니다. index에 userId를 넣으면, 필용시 특정 사용자가 올린 문서만을 참조할 수 있습니다. 
 
 ```python
 def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
     new_vectorstore = OpenSearchVectorSearch(
         index_name="rag-index-"+userId+'-'+requestId,
         is_aoss = False,
-        #engine="faiss",  # default: nmslib
         embedding_function = bedrock_embeddings,
         opensearch_url = opensearch_url,
         http_auth=(opensearch_account, opensearch_passwd),
@@ -145,7 +143,7 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
     new_vectorstore.add_documents(docs)    
 ```
 
-관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 추가할 수 있습니다.
+관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 메타정보로서 추가할 수 있습니다. OpenSearch에 Query를 할때에 [similarity_search_with_score](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.similarity_search_with_score)를 사용하면, 결과값의 신뢰도를 score로 구할 수 있는데, "0.008877229"와 같이 소숫점을 가지는 숫자로 표현됩니다. 
 
 ```python
 relevant_documents = vectorstore_opensearch.similarity_search_with_score(
@@ -180,11 +178,9 @@ for i, document in enumerate(relevant_documents):
 return relevant_docs
 ```
 
-이때, assessed_score의 한 예는 "0.008877229"와 같은 소숫점 이하의 숫자를 가집니다.
-
 ### Faiss
 
-아래와 같이 Faiss에 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 add_documents를 이용해 추가합니다. Faiss는 in-memory vectore store로 인스턴스가 유지될 동안만 사용할 수 있습니다. 
+아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 add_documents를 이용해 추가합니다. Faiss는 in-memory vectore store로 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
 
 ```python
 if isReady == False:
@@ -198,7 +194,7 @@ else:
     vectorstore_faiss.add_documents(docs)    
 ```
 
-similarity_search_with_score()를 이용면 similarity에 대한 score를 얻을 수 있습니다. Faiss는 관련도가 높은 순서로 문서를 전달하는데, 관련도가 높을 수도록 score의 값는 작은값을 가집니다. 문서에서 이름(title), 페이지(_excerpt_page_number), 신뢰도(assessed_score), 발췌문(excerpt)을 추출합니다. 
+Faiss의 [similarity_search_with_score()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.faiss.FAISS.html#langchain.vectorstores.faiss.FAISS.similarity_search_with_score)를 이용하면 similarity에 대한 score를 얻을 수 있습니다. Faiss는 관련도가 높은 순서로 문서를 전달하는데, 관련도가 높을 수도록 score의 값는 작은값을 가집니다. 문서에서 이름(title), 페이지(_excerpt_page_number), 신뢰도(assessed_score), 발췌문(excerpt)을 추출합니다. Faiss의 score는 56와 같은 1보다 큰 값을 가집니다.
 
 ```python
 relevant_documents = vectorstore_faiss.similarity_search_with_score(
@@ -228,11 +224,10 @@ for i, document in enumerate(relevant_documents):
     }
 ```
 
-Faiss의 assessed_score는 56와 같은 1보다 큰 정수값을 가집니다.
 
 ### Kendra
 
-Kendra에 문서를 넣을때는 아래와 같이 S3 bucekt를 이용합니다. 경로를 생성할때에 파일명은 URL encoding을 하여야 합니다. 소스으 경로(source_uri)은 CloudFront와 연결된 S3의 경로를 이용합니다. Kendra에 저장되는 문서는 알애ㅘ 같은 파일포맷으로 변환하여야 합니다. 파일을 올릴때는 [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용합니다. 
+Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket를 이용합니다. 경로를 생성할 때에 파일명은 URL encoding을 하여야 합니다. 소스의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있습니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
 
 
 ```python
@@ -296,7 +291,7 @@ def store_document_for_kendra(path, s3_file_name, requestId):
     )
 ```    
 
-Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할때와 동일하게 "_language_code"을 "ko"로 설정하고, "top_k"만큼의 Relevent Document를 가져오도록 설정합니다.
+Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정하고, "top_k"만큼의 Relevant Document를 가져오도록 설정합니다.
 
 ```python
 from langchain.retrievers import AmazonKendraRetriever
@@ -315,8 +310,7 @@ kendraRetriever = AmazonKendraRetriever(
 )
 ```
 
-get_relevant_documents()을 이용하여 관련된 문서를 가져옵니다. LangChain의 AmazonKendraRetriever은 Kendra의 Retrieve를 이용해 조회를 합니다. 
-
+Kendra의 [get_relevant_documents()](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)을 이용하여 "top_k"개의 질문(query)과 관련된 문서들(Relevanct Documents)를 가져옵니다. 
 
 ```python
 rag_type = "kendra"
@@ -334,7 +328,6 @@ for i, document in enumerate(relevant_documents):
     excerpt = document.metadata['excerpt']
     uri = document.metadata['document_attributes']['_source_uri']
     page = document.metadata['document_attributes']['_excerpt_page_number']
-
     assessed_score = ""
 
     doc_info = {
