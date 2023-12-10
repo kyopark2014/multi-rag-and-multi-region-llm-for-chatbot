@@ -108,7 +108,7 @@ else:
 ```
 
 
-### Knowledge Store에서 관련된 문서 가져오기
+### 지식저장소(Knowledge Store)에서 관련된 문서 가져오기
 
 Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다.
 여기서는 지식저장소로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
