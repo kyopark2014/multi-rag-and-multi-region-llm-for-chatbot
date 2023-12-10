@@ -4,7 +4,7 @@
 
 Amazon Bedrock은 On-Demand와 Provisioned 방식으로  나누어 [허용 Request와 Tokens수](https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html)의 제한이 있습니다. On-Demend의 경우에 사용한 만큼만 과금하는 방식으로 LLM 어플리케이션 개발 및 초기 사업화시 Provisoned 방식 대비 유용합니다. Bedrock은 API 방식으로 Multi-Region을 지원하고 있으므로, Multi-Region을 이용하면, On-Demend 방식의 허용 용량 증대 효과가 있습니다. 본 게시글은 여러 리전(Multi-Region)의 [Claude LLM(Large Language Models)](https://aws.amazon.com/ko/bedrock/claude/)을 이용하여, 여러 종류의 [Knowledge Store](https://aws.amazon.com/ko/about-aws/whats-new/2023/09/knowledge-base-amazon-bedrock-models-data-sources/)를 RAG로 활용하는 방법을 설명합니다.
 
-Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능을 구현할 수 있어야 합니다. 
+Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능을 구현하여야 합니다. 
 
 - 2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 RAG의 숫자만큼 관련 문서(Relevant Documents)의 수가 증가하므로 Claud2.1을 활용하더라도 RAG 문서의 숫자를 제한할 필요가 있습니다. 또한 RAG의 용도 또는 RAG에 저장된 데이터의 차이에 따라서 어떤 RAG는 원했던 관련된 문서를 주지 못하거나 관련성이 적은 문서를 줄 수 있으며, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에 큰 영향을 주므로, 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치할 수 있어야 합니다. 따라서, 각 RAG가 조회한 관련 문서들을 context window 크기에 맞게 선택하고, 중요도에 따라 순서대로 선택하여 하나의 context로 만들수 있어야 합니다. 
 
@@ -14,7 +14,7 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 ## 아키텍처 개요
 
-전체적인 아키텍처는 아래와 같습니다. Web으로 제공되는 대화창에서 메시지를 입력하면 Websocket 방식을 지원하는 API Gateway를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에서 메시지를 처리합니다. Multi-RAG로 Faiss, OpenSearch, Kendra를 사용합니다. Faiss는 lambda(chat)의 메모리를 활용하고, Amazon Kendra와 OpenSearch는 [AWS CDK](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/home.html)를 이용해 설치합니다. 대화이력은 [Amazon DynamoDB](https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/GettingStartedDynamoDB.html)을 이용해 json 포맷으로 저장하고 관리합니다. Multi-Region으로는 Virginia(us-east-1)과 Oregon(us-west-2) 리전를 활용하는데, AWS의 다른 Bedrock 리전을 추가하여 사용할 수 있습니다.
+전체적인 아키텍처는 아래와 같습니다. Web으로 제공되는 대화창에서 메시지를 입력하면 Websocket 방식을 지원하는 [Amazon API Gateway](https://docs.aws.amazon.com/ko_kr/apigateway/latest/developerguide/welcome.html)를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에서 메시지를 처리합니다. Multi-RAG로 Faiss, OpenSearch, Kendra를 사용합니다. Faiss는 lambda(chat)의 메모리를 활용하고, Amazon Kendra와 OpenSearch는 [AWS CDK](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/home.html)를 이용해 설치합니다. 대화이력은 [Amazon DynamoDB](https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/GettingStartedDynamoDB.html)을 이용해 json 포맷으로 저장하고 관리합니다. Multi-Region으로는 Virginia(us-east-1)과 Oregon(us-west-2) 리전를 활용하는데, AWS의 다른 Bedrock 리전을 추가하여 사용할 수 있습니다.
 
 <img src="./images/basic-architecture.png" width="900">
 
