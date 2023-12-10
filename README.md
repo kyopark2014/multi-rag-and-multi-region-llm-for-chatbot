@@ -4,6 +4,8 @@
 
 Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다. 이러한 지식저장소에는 대표적인 In-memory vector store인 [Faiss](https://github.com/facebookresearch/faiss/wiki/Getting-started)와 persistent store이면서 대용량 병렬처리가 가능한 [Amazon OpenSearch](https://medium.com/@pandey.vikesh/rag-ing-success-guide-to-choose-the-right-components-for-your-rag-solution-on-aws-223b9d4c7280)와 완전관리형 검색서비스인 [Amazon Kendra](https://aws.amazon.com/ko/kendra/features/)가 있습니다. 또한, [2023년 re:Invent](https://reinvent.awsevents.com/)에서는 Aurora, OpenSearch, Kendra뿐 아니라 Document DB, Mongo DB, Neptune등 거의 모든 데이터베이스의 RAG 지원이 발표되었으므로, 향후 다양한 Database가 RAG의 지식저장소로 활용될 수 있을것으로 기대됩니다.
 
+## Multi-RAG와 Multi-Region
+
 2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 하지만, Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 또한, [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 또한, 질문후 답변까지의 시간은 Chatbot의 사용성에 매우 중요한 요소입니다. Multi-RAG를 사용하면 RAG를 제공하는 지식저장소의 숫자만큼 지연시간이 증가할 수 있습니다. 따라서, 지연시간을 최소화하기 위하여 Thread와 같은 것을 이용하여 동시에 실행을 할 수 있어야 합니다.
 
 Amazon Bedrock은 On-Demand방식과 Provisioned로  나누어 허용 Request와 Tokens수의 제한을 두고 있습니다. On-Demend의 경우에 사용한 만큼만 과금하는 방식으로 LLM 개발 및 초기 사업화시 Provisoned 방식 대비 유용합니다. Bedrock은 API 방식으로 Multi-Region을 지원하고 있으므로, Multi-Region을 이용하면, On-Demend 방식의 용량 증대 효과가 있습니다. .
