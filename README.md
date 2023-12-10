@@ -145,7 +145,7 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, requestId):
     new_vectorstore.add_documents(docs)    
 ```
 
-관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지 번호(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 메타 정보로 추가할 수 있습니다. OpenSearch에 Query를 할때에 [similarity_search_with_score](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.similarity_search_with_score)를 사용하면, 결과값의 신뢰도를 score로 구할 수 있는데, "0.008877229"와 같이 소숫점을 가지는 숫자로 표현됩니다. 
+관련된 문서(relevant docs)는 아래처럼 검색할 수 있습니다. 문서가 검색이 되면 아래와 같이 metadata에서 문서의 이름(title), 페이지 번호(_excerpt_page_number), 파일의 경로(source) 및 발췌문(excerpt)를 추출해서 관련된 문서(Relevant Document)에 메타 정보로 추가할 수 있습니다. OpenSearch에 Query할 때에 [similarity_search_with_score](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html#langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.similarity_search_with_score)를 사용하면, 결과값의 신뢰도를 score로 구할 수 있는데, "0.008877229"와 같이 1보다 작은 실수로 표현됩니다. 
 
 ```python
 relevant_documents = vectorstore_opensearch.similarity_search_with_score(
@@ -182,7 +182,7 @@ return relevant_docs
 
 ### Faiss
 
-아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 [add_documents()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.faiss.FAISS.html?highlight=faiss#langchain.vectorstores.faiss.FAISS.add_documents)를 이용해 추가합니다. Faiss는 in-memory vectore store이므로, Faiss에 저장한 문서는 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
+아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 [add_documents()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.faiss.FAISS.html?highlight=faiss#langchain.vectorstores.faiss.FAISS.add_documents)를 이용해 추가합니다. Faiss는 in-memory vector store이므로, Faiss에 저장한 문서는 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
 
 ```python
 if isReady == False:
@@ -229,7 +229,7 @@ for i, document in enumerate(relevant_documents):
 
 ### Kendra
 
-Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket를 이용합니다. 문서의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있는데, 파일명은 URL encoding을 하여야 합니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
+Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket을 이용합니다. 문서의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있는데, 파일명은 URL encoding을 하여야 합니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
 
 
 ```python
@@ -293,7 +293,7 @@ def store_document_for_kendra(path, s3_file_name, requestId):
     )
 ```    
 
-Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)로 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정합니다.
+Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)를 이용하여, 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정합니다.
 
 ```python
 from langchain.retrievers import AmazonKendraRetriever
@@ -412,10 +412,10 @@ processes = []
 parent_connections = []
 for rag in capabilities:
     parent_conn, child_conn = Pipe()
-parent_connections.append(parent_conn)
+    parent_connections.append(parent_conn)
 
-process = Process(target = retrieve_process_from_RAG, args = (child_conn, revised_question, top_k, rag))
-processes.append(process)
+    process = Process(target = retrieve_process_from_RAG, args = (child_conn, revised_question, top_k, rag))
+    processes.append(process)
 
 for process in processes:
     process.start()
@@ -423,25 +423,41 @@ for process in processes:
 for parent_conn in parent_connections:
     rel_docs = parent_conn.recv()
 
-if (len(rel_docs) >= 1):
-    for doc in rel_docs:
-        relevant_docs.append(doc)
+    if (len(rel_docs) >= 1):
+        for doc in rel_docs:
+            relevant_docs.append(doc)
 
 for process in processes:
     process.join()
+
+def retrieve_process_from_RAG(conn, query, top_k, rag_type):
+    relevant_docs = []
+    if rag_type == 'kendra':
+        rel_docs = retrieve_from_kendra(query=query, top_k=top_k)      
+        print('rel_docs (kendra): '+json.dumps(rel_docs))
+    else:
+        rel_docs = retrieve_from_vectorstore(query=query, top_k=top_k, rag_type=rag_type)
+        print(f'rel_docs ({rag_type}): '+json.dumps(rel_docs))
+    
+    if(len(rel_docs)>=1):
+        for doc in rel_docs:
+            relevant_docs.append(doc)    
+    
+    conn.send(relevant_docs)
+    conn.close()
 ```
 
 ### RAG의 결과를 신뢰도에 따라 정렬하기
 
-RAG 조회시 나오는 관련 문서(Relevant Documents)의 숫자가 증가하므로, 여러 방식의 RAG가 주는 문장중에 답변에 가장 가까운 문장을 골라서, context로 prompt에 넣을때 순서대로 넣을 수 있어야 합니다. RAG 방식에 따라서는 결과의 신뢰를 나타내는 score를 주기도 하는데, RAG마다 결과를 측정하는 방법이 달라서, RAG의 문서를 신뢰도에 맞추기 위해 다시 관련된 문서를 평가하고 재배치하는 과정이 필요합니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 프로세스와 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
+Multi-RAG로 얻은 관련 문서들(Relevant Documents)을 신뢰도에 따라 순서대로 정리한 후에 context로 사용하고자 합니다. RAG 방식에 따라서 결과의 신뢰를 나타내는 score를 주기도 하는데, RAG마다 결과를 측정하는 방법이 달라서, RAG의 문서를 신뢰도에 맞추기 위해 다시 관련된 문서를 평가하고 재배치하는 과정이 필요합니다. 여기서는 In-memory 방식의 Faiss를 이용하여 각 RAG가 전달한 문서들중에 가장 질문과 가까운 문서들을 고릅니다. In-memory 방식은 Lambda의 프로세스와 메모리를 활용하므로 추가적인 비용이 발생하지 않으며 속도도 빠릅니다. 
 
 아래의 check_confidence()와 같이 Faiss, OpenSearch, Kendra가 검색한 관련된 문서를 Faiss에 문서로 등록합니다. 이후 Faiss의 similarity search를 이용하여, top_k의 문서를 다시 고르는데, assessed_score가 200이하인 문서를 선택하여 선택된 관련 문서(selected_relevant_docs)로 활용합니다.
 
 ```python
 if len(relevant_docs) >= 1:
-    selected_relevant_docs = check_confidence(revised_question, relevant_docs, bedrock_embeddings)
+    selected_relevant_docs = priority_search(revised_question, relevant_docs, bedrock_embeddings)
 
-def check_confidence(query, relevant_docs, bedrock_embeddings):
+def priority_search(query, relevant_docs, bedrock_embeddings):
     excerpts = []
     for i, doc in enumerate(relevant_docs):
         excerpts.append(
