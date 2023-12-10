@@ -6,7 +6,7 @@ Amazon Bedrock은 On-Demand 방식과 Provisioned로  나누어 [허용 Request�
 
 ## Multi-RAG와 Multi-Region
 
-Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다. 또한, 2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. 
+Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다. 또한, 2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
 
 - Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 
 - [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치합니다.
