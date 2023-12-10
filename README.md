@@ -582,7 +582,3 @@ cd ~/environment/multi-rag-and-multi-region-llm-for-chatbot/cdk-multi-rag-chatbo
 - [Amazon Bedrock을 이용하여 Stream 방식의 한국어 Chatbot 구현하기](https://aws.amazon.com/ko/blogs/tech/stream-chatbot-for-amazon-bedrock/)
 
 
-
-## Reference 
-
-[Claude - Constructing a prompt](https://docs.anthropic.com/claude/docs/constructing-a-prompt)
