@@ -293,7 +293,7 @@ def store_document_for_kendra(path, s3_file_name, requestId):
     )
 ```    
 
-Langchain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)를 이용하여, 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정합니다.
+LangChain의 [Kendra Retriever](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.kendra.AmazonKendraRetriever.html)를 이용하여, 아래와 같이 Kendra Retriever를 생성합니다. 파일을 등록할 때와 동일하게 "_language_code"을 "ko"로 설정합니다.
 
 ```python
 from langchain.retrievers import AmazonKendraRetriever
