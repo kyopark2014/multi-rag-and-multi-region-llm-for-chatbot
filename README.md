@@ -563,6 +563,8 @@ Multi-RAG의 동작을 확인하기 위하여 [Amazon_Lex.pdf](./contents/Amazon
 cd ~/environment/multi-rag-and-multi-region-llm-for-chatbot/cdk-multi-rag-chatbot/ && cdk destroy --all
 ```
 
+대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 재시도 합니다.
+
 
 ## 결론
 
