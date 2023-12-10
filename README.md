@@ -6,7 +6,7 @@ Amazon Bedrock은 On-Demand 방식과 Provisioned로  나누어 [허용 Request�
 
 ## Multi-RAG와 Multi-Region
 
-2023년 11월 출시된 [Cluade2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
+2023년 11월 출시된 [Claude2.1](https://aws.amazon.com/ko/about-aws/whats-new/2023/11/claude-2-1-foundation-model-anthropic-amazon-bedrock/)은 context window로 200k tokens을 제공하므로 기존 대비 더 많은 RAG 문서를 활용할 수 있게 되었습니다. Multi-RAG를 활용하기 위해 고려할 사항은 아래와 같습니다.
 
 - Multi-RAG에서는 여러개의 지식저장소들로 부터 각각 관련 문서들((Relevant Documents)을 이용하여야 하므로 문서의 숫자를 제한하여야 합니다. 
 - [관련 문서의 순서나 위치](https://www.anthropic.com/index/claude-2-1-prompting)는 LLM의 결과에서 매우 중요한 요소입니다. 관련도가 높은 문서가 context의 상단에 있을수 있도록 배치합니다.
@@ -44,7 +44,7 @@ Amazon Bedrock은 API 기반이므로 다른 리전의 Bedcok을 이용할 수 �
 
 ### Multi-Region LLM 환경 구성
 
-LangChain을 이용하여  Multi-Region에서 Anthropic Claud LLM의 환경을 구성할 수 있습니다. 여기에서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
+LangChain을 이용하여  Multi-Region에서 Anthropic Claude LLM의 환경을 구성할 수 있습니다. 여기에서는 "us-east-1"과, "us-west-2"를 이용해 Multi-Region을 구성하고 동적으로 할당하여 사용하는 방법을 설명합니다. [cdk-multi-rag-chatbot-stack.ts](./cdk-multi-rag-chatbot/lib/cdk-multi-rag-chatbot-stack.ts)에서는 아래와 같이 LLM의 profile을 저장한 후에 LLM을 처리하는 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 관련 정보를 Environment variables로 전달합니다. 
 
 ```typescript
 const profile_of_LLMs = JSON.stringify([
