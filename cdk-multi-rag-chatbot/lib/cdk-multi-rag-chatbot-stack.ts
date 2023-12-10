@@ -619,11 +619,6 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
       stageName: stage
     }); 
 
-    new cdk.CfnOutput(this, `FAQ-Update-for-${projectName}`, {
-      value: 'aws kendra create-faq --index-id '+kendraIndex+' --name faq-banking --s3-path \'{\"Bucket\":\"'+s3Bucket.bucketName+'\", \"Key\":\"faq/faq-banking.csv\"}\' --role-arn '+roleLambdaWebsocket.roleArn+' --language-code ko --region '+kendra_region+' --file-format CSV',
-      description: 'The commend for uploading contents of FAQ',
-    });
-
     // deploy components
     new componentDeployment(scope, `component-deployment-of-${projectName}`, websocketapi.attrApiId)     
   }
