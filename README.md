@@ -14,7 +14,7 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 ## 아키텍처 개요
 
-전체적인 아키텍처는 아래와 같습니다. Web으로 제공되는 대화창에서 메시지를 입력하면 Websocket 방식을 지원하는 [Amazon API Gateway](https://docs.aws.amazon.com/ko_kr/apigateway/latest/developerguide/welcome.html)를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에서 메시지를 처리합니다. Multi-RAG로 Faiss, OpenSearch, Kendra를 사용합니다. Faiss는 lambda(chat)의 메모리를 활용하고, Amazon Kendra와 OpenSearch는 [AWS CDK](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/home.html)를 이용해 설치합니다. 대화이력은 [Amazon DynamoDB](https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/GettingStartedDynamoDB.html)을 이용해 json 포맷으로 저장하고 관리합니다. Multi-Region으로는 Virginia(us-east-1)과 Oregon(us-west-2) 리전를 활용하는데, AWS의 다른 Bedrock 리전을 추가하여 사용할 수 있습니다.
+전체적인 아키텍처는 아래와 같습니다. Web으로 제공되는 대화창에서 메시지를 입력하면 Websocket 방식을 지원하는 [Amazon API Gateway](https://docs.aws.amazon.com/ko_kr/apigateway/latest/developerguide/welcome.html)를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에서 메시지를 처리합니다. 여기에서는 Multi-RAG로 Faiss, OpenSearch, Kendra를 사용합니다. Faiss는 lambda(chat)의 프로세스와 메모리를 활용하고, Amazon Kendra와 OpenSearch는 [AWS CDK](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/home.html)를 이용해 설치합니다. 대화이력은 [Amazon DynamoDB](https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/GettingStartedDynamoDB.html)을 이용해 json 포맷으로 저장하고 관리합니다. Multi-Region으로는 Virginia(us-east-1)과 Oregon(us-west-2) 리전를 활용하는데, AWS의 다른 Bedrock 리전을 추가하여 사용할 수 있습니다.
 
 <img src="./images/basic-architecture.png" width="900">
 
@@ -22,18 +22,18 @@ Multi-RAG와 Multi-Region를 구현하기 위해서는 아래와 같은 기능�
 
 단계1: 채팅창에 사용자가 메시지를 입력하면, [Amazon API Gateway](https://docs.aws.amazon.com/ko_kr/apigateway/latest/developerguide/welcome.html)를 통해 [lambda(chat)](./lambda-chat-ws/lambda_function.py)에 event로 메시지가 전달됩니다.
 
-단계2: [lambda(chat)](./lambda-chat-ws/lambda_function.py)은 기존 채팅이력을 DynamoDB에서 읽어오고, Assistant와의 상호작용(interaction)을 고려한 새로운 질문을 생성합니다.
+단계2: [lambda(chat)](./lambda-chat-ws/lambda_function.py)은 기존 대화이력을 DynamoDB에서 읽어오고, Assistant와의 상호작용(interaction)을 고려한 새로운 질문을 생성합니다.
 
-단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다.
+단계3: RAG를 위한 지식저장소(Knowledge Store)인 Faiss, Amazon Kendra, Amazon OpenSearch로 부터 관련된 문서(Relevant Documents)를 조회합니다. 각 RAG로 부터 수집된 관련된 문서들(Relevant Documents)들은 새로운 질문(Revised Question)과의 관련성에 따라 재배치 한 후에 하나의 context로 만듧니다.
 
-단계4: Bedrock의 Claude LLM으로 질문을 전달합니다. 여기서는 On Demend 방식의 용량증대를 위하여 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보내게 됩니다. 
+단계4: Bedrock의 Claude LLM으로 새로운 질문과 RAG의 결과물로 만든 Context를 전달합니다. 이때, 각 event는 us-east-1과 us-west-2의 Bedrock으로 번갈아서 요청을 보냅니다.
 
 단계5: lambda(chat)은 LLM의 응답을 Diaglog로 저장하고, 사용자에게 답변을 전달합니다.
 
 단계6: 사용자는 답변을 확인하고, 필요시 Amazon S3에 저장된 문서를 Amazon CloudFront를 이용해 안전하게 읽어서 보여줍니다. 
 
 
-이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 지식 저장소에 대한 RAG query 동작을 수행합니다. 또한 event는 us-east-1과 us-west-2의 LLM을 이용해 요청을 처리합니다. DynamoDB로 부터 채팅이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
+이때의 Sequence diagram은 아래와 같습니다. lambda(chat)은 하나의 질문(question)을 위해 2번의 LLM query와 3개의 지식 저장소에 대한 RAG query 동작을 수행합니다. 또한 event는 us-east-1과 us-west-2의 LLM을 이용해 요청을 처리합니다. DynamoDB로 부터 대화이력을 읽어오는 과정은 첫번째 event에 대해서만 수행하고 이후로는 Lambda의 내부 메모리에 대화이력을 저장후 활용합니다.
 
 <img src="./images/sequence.png" width="800">
 
@@ -362,7 +362,7 @@ return relevant_docs
 
 ### 관련된 문서를 포함한 RAG 구현
 
-Assistent와 상호작용(interacton)을 위하여 채팅이력을 이용해 사용자의 질문을 새로운 질문(revised_question)으로 업데이트합니다. 이때 사용하는 prompt는 한국어와 영어로 나누어 아래처럼 적용하고 있습니다. 
+Assistent와 상호작용(interacton)을 위하여 대화이력을 이용해 사용자의 질문을 새로운 질문(revised_question)으로 업데이트합니다. 이때 사용하는 prompt는 한국어와 영어로 나누어 아래처럼 적용하고 있습니다. 
 
 ```python
 revised_question = get_revised_question(llm, connectionId, requestId, text) # generate new prompt 
