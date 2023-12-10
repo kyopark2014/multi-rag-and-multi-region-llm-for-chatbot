@@ -108,12 +108,12 @@ else:
 ```
 
 
-## Knowledge Store에서 관련된 문서 가져오기
+### Knowledge Store에서 관련된 문서 가져오기
 
 Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함으로써 관련된 문서를 검색할 수 있는 확율을 높이고, 여러 곳에 분산되어 저장된 문서를 RAG의 데이터소스로 활용할 수 있는 기회를 제공합니다.
 여기서는 지식저장소로 OpenSearch, Faiss, Kendra를 활용합니다. Knowledge Store는 application에 맞게 추가하거나 제외할 수 있습니다.
 
-### OpenSearch
+#### OpenSearch
 
 [OpenSearchVectorSearch](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html)을 이용해 vector store를 정의합니다. 
 
@@ -180,7 +180,7 @@ for i, document in enumerate(relevant_documents):
 return relevant_docs
 ```
 
-### Faiss
+#### Faiss
 
 아래와 같이 Faiss는 문서를 처음 등록할 때에 vector store로 정의합니다. 이후로 추가되는 문서는 아래처럼 [add_documents()](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.faiss.FAISS.html?highlight=faiss#langchain.vectorstores.faiss.FAISS.add_documents)를 이용해 추가합니다. Faiss는 in-memory vector store이므로, Faiss에 저장한 문서는 Lambda 인스턴스가 유지될 동안만 사용할 수 있습니다. 
 
@@ -227,7 +227,7 @@ for i, document in enumerate(relevant_documents):
 ```
 
 
-### Kendra
+#### Kendra
 
 Kendra에 문서를 넣을 때는 아래와 같이 S3 bucket을 이용합니다. 문서의 경로(source_uri)는 CloudFront와 연결된 S3의 경로를 이용해 구할 수 있는데, 파일명은 URL encoding을 하여야 합니다. Kendra에 저장되는 문서는 아래와 같은 파일포맷으로 표현되어야 하며, [boto3의 batch_put_document()](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kendra/client/batch_put_document.html)을 이용해 등록합니다. 
 
