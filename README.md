@@ -545,7 +545,7 @@ def get_reference(docs):
 
 ### 실행결과
 
-Multi-RAG의 동작을 확인하기 위하여 [Amazon_Lex.pdf](./contents/Amazon_Lex.pdf) 파일을 다운로드 한 후에, 채팅 화면 하단의 파일 아이콘을 선택하여 업로드합니다. 이후 채팅창에 "Amazon Lex의 자연어 처리 방식에 대해 설명해주세요."라고 입력한 후에 결과를 확인합니다. 하단의 "From" 이하로 참고자료가 표시됩니다. 아래와 같이 Faiss, Kendra, OpenSearch로 검색한 정보가 표시됩니다. 여기서 오른쪽 괄호 안에는 Faiss로 얻은 similarity search 결과가 점수로 표시되는데 점수가 낮을수록 더 신뢰도가 있습니다. 
+Multi-RAG의 동작을 확인하기 위하여 [Amazon_Lex.pdf](./contents/Amazon_Lex.pdf) 파일을 다운로드 한 후에, 채팅 화면 하단의 파일 아이콘을 선택하여 업로드합니다. 본 실습에서는 Multi-RAG 동작을 테스트하기 위하여 파일 업로드시 모든 RAG에 문서로 등록하도록 구성하였습니다. 실사용시에는 RAG 별로 다른 데이터가 저장될것으로 예상됩니다. 업로드가 완료되면 파일 내용을 요약하여 보여집니다. 이후 채팅창에 "Amazon Lex의 자연어 처리 방식에 대해 설명해주세요."라고 입력한 후에 결과를 확인합니다. 하단의 "From" 이하로 참고자료가 표시됩니다. 아래와 같이 Faiss, Kendra, OpenSearch로 검색한 정보가 표시됩니다. 여기서 오른쪽 괄호 안에는 Faiss로 얻은 similarity search 결과가 점수로 표시되는데 점수가 낮을수록 더 신뢰도가 있습니다. 
 
 ![image](./images/result-lex.png)
 
