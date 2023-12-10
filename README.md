@@ -545,13 +545,13 @@ def get_reference(docs):
 
 ### 실행결과
 
-[Amazon_Lex.pdf](./contents/Amazon_Lex.pdf) 파일을 다운로드 한 후에, 채팅 화면 하단의 파일 아이콘을 선택하여 업로드합니다. 본 실습에서는 Multi-RAG 동작을 테스트하기 위하여 파일 업로드시 모든 RAG에 문서로 등록하도록 구성하였습니다. 실사용시에는 RAG 별로 다른 데이터가 저장될것으로 예상됩니다. 업로드가 완료되면 파일 내용을 요약하여 보여줍니다. 
+[error_code.pdf]([./contents/Amazon_Lex.pdf](https://raw.githubusercontent.com/kyopark2014/multi-rag-and-multi-region-llm-for-chatbot/main/contents/error_code.pdf)) 파일을 다운로드 한 후에, 채팅 화면 하단의 파일 아이콘을 선택하여 업로드합니다. 본 실습에서는 Multi-RAG 동작을 테스트하기 위하여 파일 업로드시 모든 RAG에 문서로 등록하도록 구성하였습니다. 실사용시에는 RAG 별로 다른 데이터가 저장될것으로 예상됩니다. 업로드가 완료되면 파일 내용을 요약하여 보여줍니다. 
 
-이후 채팅창에 "Amazon Lex의 자연어 처리 방식에 대해 설명해주세요."라고 입력한 후에 결과를 확인합니다. 하단의 "From" 이하로 참고자료가 표시됩니다. 아래와 같이 Faiss, Kendra, OpenSearch로 검색한 정보가 표시됩니다. 여기서 오른쪽 괄호 안에는 Faiss로 얻은 similarity search 결과가 점수로 표시되는데 점수가 낮을수록 더 신뢰도가 있습니다. 
+이후 채팅창에 "보일러가 갑자기 꺼졌어요. A396 에러가 나는데 어떻게 해야할까요?"라고 입력한 후에 결과를 확인합니다. "From" 이하로 아래와 같이 Faiss, Kendra, OpenSearch로 검색한 정보가 표시됩니다. 여기서 오른쪽 괄호 안에는 Faiss로 얻은 similarity search 결과가 점수로 표시되는데 점수가 낮을수록 더 신뢰도가 있습니다. 
 
 ![image](./images/result-lex.png)
 
-대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 재시도 합니다.
+대용량 언어 모델(LLM)의 특성상 실습의 답변은 상기 화면과 조금 다를 수 있습니다. 최초 실행시 접속에 실패하면 브라우저를 새로고침하고 질문을 재입력합니다. 또한, From에 Kendra 결과가 보여지지 않으면, index 작업이 끝나지 않은것이므로 수분후에 재시도 합니다.
 
 ## 리소스 정리하기 
 
