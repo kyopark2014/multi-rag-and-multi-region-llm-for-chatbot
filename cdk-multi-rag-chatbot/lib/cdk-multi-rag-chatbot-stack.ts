@@ -246,6 +246,11 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
           statements: [passRolePolicy],
         }), 
       );  
+
+      new cdk.CfnOutput(this, `create-S3-data-source-for-${projectName}`, {
+        value: 'aws kendra create-data-source --index-id '+kendraIndex+' --name data-source-for-upload-file --type S3 --role-arn '+roleLambdaWebsocket.roleArn+' --configuration \'{\"S3Configuration\":{\"BucketName\":\"'+s3Bucket.bucketName+'\", \"DocumentsMetadataConfiguration\": {\"S3Prefix\":\"metadata/\"},\"InclusionPrefixes\": [\"'+s3_prefix+'/\"]}}\' --language-code ko --region '+kendra_region,
+        description: 'The commend to create data source using S3',
+      });
     }
 
     // opensearch
@@ -585,7 +590,7 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
       }
     });     
     lambdaChatWebsocket.grantInvoke(new iam.ServicePrincipal('apigateway.amazonaws.com'));  
-    s3Bucket.grantRead(lambdaChatWebsocket); // permission for s3
+    s3Bucket.grantReadWrite(lambdaChatWebsocket); // permission for s3
     callLogDataTable.grantReadWriteData(lambdaChatWebsocket); // permission for dynamo 
     
     if(debug) {
