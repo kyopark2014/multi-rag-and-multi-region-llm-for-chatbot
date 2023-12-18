@@ -39,13 +39,13 @@ const profile_of_LLMs = JSON.stringify([
   {
     "bedrock_region": "us-west-2",
     "model_type": "claude",
-    "model_id": "anthropic.claude-v2:1",
+    "model_id": "anthropic.claude-instant-v1",  // anthropic.claude-v2:1
     "maxOutputTokens": "8196"
   },
   {
     "bedrock_region": "us-east-1",
     "model_type": "claude",
-    "model_id": "anthropic.claude-v2:1",
+    "model_id": "anthropic.claude-instant-v1",
     "maxOutputTokens": "8196"
   },
 ]);
