@@ -1253,10 +1253,10 @@ def getResponse(connectionId, jsonBody):
     conv_type = jsonBody['conv_type']  # conversation type
     print('Conversation Type: ', conv_type)
 
-    rag_type = ""
-
     global vectorstore_opensearch, vectorstore_faiss, enableReference
     global map_chain, map_chat, memory_chat, memory_chain, isReady, debugMessageMode, selected_LLM
+
+    reference = ""
 
     # Multi-LLM
     profile = profile_of_LLMs[selected_LLM]
