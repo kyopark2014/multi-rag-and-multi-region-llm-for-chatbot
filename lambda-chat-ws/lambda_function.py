@@ -275,17 +275,45 @@ def load_document(file_type, s3_file_name):
     doc = s3r.Object(s3_bucket, s3_prefix+'/'+s3_file_name)
     
     if file_type == 'pdf':
-        contents = doc.get()['Body'].read()
-        reader = PyPDF2.PdfReader(BytesIO(contents))
+        Byte_contents = doc.get()['Body'].read()
+        reader = PyPDF2.PdfReader(BytesIO(Byte_contents))
         
-        raw_text = []
+        texts = []
         for page in reader.pages:
-            raw_text.append(page.extract_text())
-        contents = '\n'.join(raw_text)    
+            texts.append(page.extract_text())
+        contents = '\n'.join(texts)
+        
+    elif file_type == 'pptx':
+        Byte_contents = doc.get()['Body'].read()
+            
+        from pptx import Presentation
+        prs = Presentation(BytesIO(Byte_contents))
+
+        texts = []
+        for i, slide in enumerate(prs.slides):
+            text = ""
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    text = text + shape.text
+            texts.append(text)
+        contents = '\n'.join(texts)
         
     elif file_type == 'txt':        
         contents = doc.get()['Body'].read().decode('utf-8')
-        
+
+    elif file_type == 'docx':
+        Byte_contents = doc.get()['Body'].read()
+            
+        import docx
+        doc_contents =docx.Document(BytesIO(Byte_contents))
+
+        texts = []
+        for i, para in enumerate(doc_contents.paragraphs):
+            if(para.text):
+                texts.append(para.text)
+                # print(f"{i}: {para.text}")        
+        contents = '\n'.join(texts)
+            
     # print('contents: ', contents)
     new_contents = str(contents).replace("\n"," ") 
     print('length: ', len(new_contents))
@@ -298,11 +326,7 @@ def load_document(file_type, s3_file_name):
     ) 
 
     texts = text_splitter.split_text(new_contents) 
-    if len(new_contents)>0:
-        print('texts[0]: ', texts[0])
-    else:
-        print('No texts')
-            
+                
     return texts
 
 # load csv documents from s3
@@ -1409,7 +1433,7 @@ def getResponse(connectionId, jsonBody):
 
                 msg = get_summary(llm, texts)
 
-            elif file_type == 'pdf' or file_type == 'txt':
+            elif file_type == 'pdf' or file_type == 'txt' or file_type == 'pptx' or file_type == 'docx':
                 texts = load_document(file_type, object)
 
                 docs = []
@@ -1457,7 +1481,7 @@ def getResponse(connectionId, jsonBody):
                     p1 = Process(target=store_document_for_kendra, args=(path, object, documentId,))
                     p1.start(); p1.join()
                     
-                    if file_type == 'pdf' or file_type == 'txt' or file_type == 'csv':
+                    if file_type == 'pdf' or file_type == 'txt' or file_type == 'csv' or file_type == 'pptx' or file_type == 'docx':
                         # opensearch
                         p2 = Process(target=store_document_for_opensearch, args=(bedrock_embeddings, docs, userId, documentId,))
                         p2.start(); p2.join()
