@@ -938,9 +938,9 @@ def get_reference_using_kendra_retriever(docs):
         name = doc['metadata']['title']
 
         if page: 
-            reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+            reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name}</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
         else:
-            reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+            reference = reference + f"{i+1}. <a href={uri} target=_blank>{name}</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
     return reference
 
 def get_reference_using_custom_retriever(docs):
@@ -950,7 +950,7 @@ def get_reference_using_custom_retriever(docs):
             if doc['api_type'] == 'retrieve': # Retrieve. socre of confidence is only avaialbe for English
                 uri = doc['metadata']['source']
                 name = doc['metadata']['title']
-                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name}</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
             else: # Query
                 confidence = doc['confidence']
                 if ("type" in doc['metadata']) and (doc['metadata']['type'] == "QUESTION_ANSWER"):
@@ -984,9 +984,9 @@ def get_reference_using_custom_retriever(docs):
             name = doc['metadata']['title']
 
             if page: 
-                reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"
+                reference = reference + f"{i+1}. {page}page in <a href={uri} target=_blank>{name}</a>, {doc['rag_type']} ({doc['assessed_score']})\n"
             else:
-                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name} </a>, {doc['rag_type']} ({doc['assessed_score']})\n"                
+                reference = reference + f"{i+1}. <a href={uri} target=_blank>{name}</a>, {doc['rag_type']} ({doc['assessed_score']})\n"                
     return reference
             
 def retrieve_from_vectorstore(query, top_k, rag_type):
