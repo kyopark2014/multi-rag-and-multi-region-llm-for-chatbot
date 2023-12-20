@@ -1420,8 +1420,9 @@ def getResponse(connectionId, jsonBody):
                     msg = get_answer_from_PROMPT(llm, text, conv_type, connectionId, requestId)
                 
         elif type == 'document':
-            object = body
+            isTyping(connectionId, requestId)
 
+            object = body
             file_type = object[object.rfind('.')+1:len(object)]            
             print('file_type: ', file_type)
 
