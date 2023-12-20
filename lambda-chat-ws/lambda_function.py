@@ -193,7 +193,7 @@ def store_document_for_faiss(docs, vectorstore_faiss):
 def store_document_for_opensearch(bedrock_embeddings, docs, userId, documentId):
     print('store document to opensearch')
     new_vectorstore = OpenSearchVectorSearch(
-        index_name="rag-index-"+userId+'-'+documentId,
+        index_name="rag-index-"+userId,
         is_aoss = False,
         #engine="faiss",  # default: nmslib
         embedding_function = bedrock_embeddings,
