@@ -191,7 +191,6 @@ def store_document_for_faiss(docs, vectorstore_faiss):
     print('uploaded into faiss')
 
 def store_document_for_opensearch(bedrock_embeddings, docs, userId, documentId):
-    print('store document to opensearch')
     new_vectorstore = OpenSearchVectorSearch(
         index_name="rag-index-"+userId,
         is_aoss = False,
@@ -200,7 +199,9 @@ def store_document_for_opensearch(bedrock_embeddings, docs, userId, documentId):
         opensearch_url = opensearch_url,
         http_auth=(opensearch_account, opensearch_passwd),
     )
-    new_vectorstore.add_documents(docs)    
+    response = new_vectorstore.add_documents(docs)    
+    print('response of adding documents: ', response)
+    
     print('uploaded into opensearch')
 
 # store document into Kendra

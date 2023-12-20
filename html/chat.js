@@ -26,14 +26,12 @@ HashMap.prototype = {
     get: function(key) {
         return this.map[key];
     },
-    getAll: function() {
-        return this.map;
-    },
-    clear: function() {
-        return this.map;
-    },
-    isEmpty: function() {
-        return (this.map.size()==0);
+    size: function() {
+        var keys = new Array();
+        for(i in this.map) {
+            keys.push(i);
+        }
+        return keys.length;
     },
     remove: function(key) {
         delete this.map[key];
@@ -57,6 +55,8 @@ let maxMsgItems = 200;
 // let msgHistory = new HashMap();
 let sentTime = new HashMap();
 
+let undelivered = new HashMap();
+let retry_count = 0;
 function sendMessage(message) {
     if(!isConnected) {
         console.log('reconnect...'); 
@@ -68,10 +68,17 @@ function sendMessage(message) {
         else {
             addNotifyMessage("We are connecting again. Please wait a few seconds.");                        
         }
+
+        undelivered.put(message.request_id, message);
+        console.log('undelivered message: ', message);
+        
+        return false
     }
     else {
         webSocket.send(JSON.stringify(message));     
         console.log('message: ', message);   
+
+        return true;
     }     
 }
 
@@ -96,6 +103,26 @@ function connect(endpoint, type) {
     ws.onopen = function () {
         console.log('connected...');
         isConnected = true;
+
+        if(undelivered.size() && retry_count>0) {
+            let keys = undelivered.getKeys();
+            console.log('retry undelived messags!');            
+            console.log('keys: ', keys);
+            console.log('retry_count: ', retry_count);
+
+            for(i in keys) {
+                let message = undelivered.get(keys[i])
+                console.log('message', message)
+                if(!sendMessage(message)) break;
+                else {
+                    undelivered.remove(message.request_id)
+                }
+            }
+            retry_count--;
+        }
+        else {
+            retry_count = 3
+        }
 
         if(type == 'initial')
             setInterval(ping, 40000);  // ping interval: 40 seconds
