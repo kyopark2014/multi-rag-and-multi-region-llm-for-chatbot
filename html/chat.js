@@ -63,7 +63,7 @@ function sendMessage(message) {
         webSocket = connect(endpoint, 'reconnect');
         
         if(langstate=='korean') {
-            addNotifyMessage("재연결중입니다. 잠시후 다시시도하세요.");
+            addNotifyMessage("재연결중입니다. 연결후 자동 재전송합니다.");
         }
         else {
             addNotifyMessage("We are connecting again. Please wait a few seconds.");                        
