@@ -642,6 +642,47 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
       stageName: stage
     }); 
 
+    // lambda - provisioning
+    const lambdaProvisioning = new lambda.Function(this, `lambda-provisioning-for-${projectName}`, {
+      description: 'lambda to earn provisioning info',
+      functionName: 'lambda-provisioning-api',
+      handler: 'lambda_function.lambda_handler',
+      runtime: lambda.Runtime.PYTHON_3_11,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-provisioning')),
+      timeout: cdk.Duration.seconds(30),
+      logRetention: logs.RetentionDays.ONE_DAY,
+      environment: {
+        connection_url: connection_url,
+      }
+    });
+
+    // POST method - provisioning
+    const provisioning_info = api.root.addResource("provisioning");
+    provisioning_info.addMethod('POST', new apiGateway.LambdaIntegration(lambdaProvisioning, {
+      passthroughBehavior: apiGateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
+      credentialsRole: role,
+      integrationResponses: [{
+        statusCode: '200',
+      }], 
+      proxy:false, 
+    }), {
+      methodResponses: [  
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apiGateway.Model.EMPTY_MODEL,
+          }, 
+        }
+      ]
+    }); 
+
+    // cloudfront setting for provisioning api
+    distribution.addBehavior("/provisioning", new origins.RestApiOrigin(api), {
+      cachePolicy: cloudFront.CachePolicy.CACHING_DISABLED,
+      allowedMethods: cloudFront.AllowedMethods.ALLOW_ALL,  
+      viewerProtocolPolicy: cloudFront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    });
+
     // deploy components
     new componentDeployment(scope, `component-deployment-of-${projectName}`, websocketapi.attrApiId)     
   }
