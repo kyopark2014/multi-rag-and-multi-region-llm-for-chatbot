@@ -63,7 +63,7 @@ const profile_of_LLMs = JSON.stringify([
 ]);
 ```
 
-사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 [boto3로 bedrock client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html)를 정의한 후에, LangChain으로 [Bedrock](https://api.python.langchain.com/en/latest/llms/langchain.llms.bedrock.Bedrock.html?highlight=bedrock#)과 [BedrockEmbeddings](https://api.python.langchain.com/en/latest/embeddings/langchain.embeddings.bedrock.BedrockEmbeddings.html)를 llm과 embeddings을 정의합니다. LLM의 리전(region)과 모델(medelId) 정보는 LLM profile로 관리되므로, lambda(chat)에 전달되는 event는 매번 다른 profile을 이용하게 됩니다.
+사용자가 보낸 메시지가 lambda(chat)에 event로 전달되면 아래와 같이 [boto3로 bedrock client](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html)를 정의한 후에, LangChain으로 [Bedrock](https://api.python.langchain.com/en/latest/llms/langchain_community.llms.bedrock.Bedrock.html?highlight=bedrock#)과 [BedrockEmbeddings](https://api.python.langchain.com/en/latest/embeddings/langchain_community.embeddings.bedrock.BedrockEmbeddings.html?highlight=bedrock%20embedding#)를 llm과 embeddings을 정의합니다. LLM의 리전(region)과 모델(medelId) 정보는 LLM profile로 관리되므로, lambda(chat)에 전달되는 event는 매번 다른 profile을 이용하게 됩니다.
 
 ```python
 profile_of_LLMs = json.loads(os.environ.get('profile_of_LLMs'))
