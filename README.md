@@ -115,7 +115,7 @@ Mult-RAG에서는 다양한 지식저장소(Knowledge Store)를 RAG로 활용함
 
 #### OpenSearch
 
-[OpenSearchVectorSearch](https://api.python.langchain.com/en/latest/vectorstores/langchain.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html)을 이용해 vector store를 정의합니다. 
+[OpenSearchVectorSearch](https://api.python.langchain.com/en/latest/vectorstores/langchain_community.vectorstores.opensearch_vector_search.OpenSearchVectorSearch.html?highlight=OpenSearchVectorSearch)을 이용해 vector store를 정의합니다. 
 
 ```python
 from langchain.vectorstores import OpenSearchVectorSearch
