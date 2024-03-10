@@ -49,17 +49,17 @@ Multi-Region 환경에서 lambda(chat)로 들어온 event를 각각의 LLM으로
 ```typescript
 const profile_of_LLMs = JSON.stringify([
   {
-    "bedrock_region": "us-west-2",
-    "model_type": "claude",
-    "model_id": "anthropic.claude-v2:1",
+    "bedrock_region": "us-west-2", // Oregon
+    "model_type": "claude3",
+    "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",   
     "maxOutputTokens": "8196"
   },
   {
-    "bedrock_region": "us-east-1",
-    "model_type": "claude",
-    "model_id": "anthropic.claude-v2:1",
+    "bedrock_region": "us-east-1", // N.Virginia
+    "model_type": "claude3",
+    "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
     "maxOutputTokens": "8196"
-  },
+  }
 ]);
 ```
 
@@ -69,33 +69,43 @@ const profile_of_LLMs = JSON.stringify([
 profile_of_LLMs = json.loads(os.environ.get('profile_of_LLMs'))
 selected_LLM = 0
 
-profile = profile_of_LLMs[selected_LLM]
-bedrock_region = profile['bedrock_region']
-modelId = profile['model_id']
-
-boto3_bedrock = boto3.client(
-    service_name = 'bedrock-runtime',
-    region_name = bedrock_region,
-    config = Config(
-        retries = {
-            'max_attempts': 30
-        }
+chat = get_chat(profile_of_LLMs, selected_LLM)
+  
+def get_chat(profile_of_LLMs, selected_LLM):
+    profile = profile_of_LLMs[selected_LLM]
+    bedrock_region =  profile['bedrock_region']
+    modelId = profile['model_id']
+    print(f'LLM: {selected_LLM}, bedrock_region: {bedrock_region}, modelId: {modelId}')
+    maxOutputTokens = int(profile['maxOutputTokens'])
+                          
+    # bedrock   
+    boto3_bedrock = boto3.client(
+        service_name='bedrock-runtime',
+        region_name=bedrock_region,
+        config=Config(
+            retries = {
+                'max_attempts': 30
+            }            
+        )
     )
-)
-parameters = get_parameter(profile['model_type'], int(profile['maxOutputTokens']))
+    parameters = {
+        "max_tokens":maxOutputTokens,     
+        "temperature":0.1,
+        "top_k":250,
+        "top_p":0.9,
+        "stop_sequences": [HUMAN_PROMPT]
+    }
+    # print('parameters: ', parameters)
 
-llm = Bedrock(
-    model_id = modelId,
-    client = boto3_bedrock,
-    streaming = True,
-    callbacks = [StreamingStdOutCallbackHandler()],
-    model_kwargs = parameters)
-
-bedrock_embeddings = BedrockEmbeddings(
-    client = boto3_bedrock,
-    region_name = bedrock_region,
-    model_id = 'amazon.titan-embed-text-v1'
-)      
+    chat = BedrockChat(
+        model_id=modelId,
+        client=boto3_bedrock, 
+        streaming=True,
+        callbacks=[StreamingStdOutCallbackHandler()],
+        model_kwargs=parameters,
+    )        
+    
+    return chat    
 ```
 
 아래와 같이 Lambda(chat)은 event를 받을때마다 아래와 같이 새로운 LLM으로 교차하게되므로, N개의 리전을 활용하면, N배의 용량이 증가하게 됩니다. 
@@ -357,47 +367,54 @@ return relevant_docs
 Assistent와 상호작용(interacton)을 위하여 대화이력을 이용해 사용자의 질문을 새로운 질문(revised_question)으로 업데이트합니다. 이때 사용하는 prompt는 한국어와 영어로 나누어 아래처럼 적용하고 있습니다. 
 
 ```python
-revised_question = get_revised_question(llm, connectionId, requestId, text) # generate new prompt 
-
-def get_revised_question(llm, connectionId, requestId, query):    
-    pattern_hangul = re.compile('[\u3131-\u3163\uac00-\ud7a3]+')
-    word_kor = pattern_hangul.search(str(query))
-
-    if word_kor and word_kor != 'None':
-        condense_template = """
-        <history>
-        {chat_history}
-        </history>
-
-        Human: <history>를 참조하여, 다음의 <question>의 뜻을 명확히 하는 새로운 질문을 한국어로 생성하세요.
-
+def revise_question(connectionId, requestId, chat, query):    
+    global history_length, token_counter_history    
+    history_length = token_counter_history = 0
+        
+    if isKorean(query)==True :      
+        system = (
+            ""
+        )  
+        human = """이전 대화를 참조하여, 다음의 <question>의 뜻을 명확히 하는 새로운 질문을 한국어로 생성하세요. 새로운 질문은 원래 질문의 중요한 단어를 반드시 포함합니다. 결과는 <result> tag를 붙여주세요.
+        
         <question>            
         {question}
-        </question>
-            
-        Assistant: 새로운 질문:"""
+        </question>"""
+        
     else: 
-        condense_template = """
-        <history>
-        {chat_history}
-        </history>
-        Answer only with the new question.
-
-        Human: using <history>, rephrase the follow up <question> to be a standalone question.
-         
-        <quesion>
+        system = (
+            ""
+        )
+        human = """Rephrase the follow up <question> to be a standalone question. Put it in <result> tags.
+        <question>            
         {question}
-        </question>
-
-        Assistant: Standalone question:"""
-
-    condense_prompt_claude = PromptTemplate.from_template(condense_template)        
-    condense_prompt_chain = LLMChain(llm=llm, prompt=condense_prompt_claude)
-
-    chat_history = extract_chat_history_from_memory()
-    revised_question = condense_prompt_chain.run({"chat_history": chat_history, "question": query})
+        </question>"""
+            
+    prompt = ChatPromptTemplate.from_messages([("system", system), MessagesPlaceholder(variable_name="history"), ("human", human)])
     
-    return revised_question
+    history = memory_chain.load_memory_variables({})["chat_history"]
+                
+    chain = prompt | chat    
+    try: 
+        result = chain.invoke(
+            {
+                "history": history,
+                "question": query,
+            }
+        )
+        generated_question = result.content
+        
+        revised_question = generated_question[generated_question.find('<result>')+8:len(generated_question)-9] # remove <result> tag                   
+        
+    except Exception:
+        err_msg = traceback.format_exc()
+        print('error message: ', err_msg)        
+            
+        sendErrorMessage(connectionId, requestId, err_msg)    
+        raise Exception ("Not able to request to LLM")
+        
+    return revised_question    
+
 ```
 
 ### Multi-RAG를 병렬로 조회하기
