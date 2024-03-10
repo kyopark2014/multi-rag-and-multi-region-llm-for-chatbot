@@ -34,21 +34,65 @@ const useParallelUpload = 'true';
 const useParallelRAG = 'true';
 const numberOfRelevantDocs = '8';
 
-const number_of_LLMs = "2"; // total number of LLMs to use
-const profile_of_LLMs = JSON.stringify([
+const claude3_sonnet = [
   {
-    "bedrock_region": "us-west-2",
-    "model_type": "claude",
-    "model_id": "anthropic.claude-instant-v1",  // anthropic.claude-v2:1
+    "bedrock_region": "us-west-2", // Oregon
+    "model_type": "claude3",
+    "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",   
     "maxOutputTokens": "8196"
   },
   {
-    "bedrock_region": "us-east-1",
+    "bedrock_region": "us-east-1", // N.Virginia
+    "model_type": "claude3",
+    "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "maxOutputTokens": "8196"
+  }
+];
+
+const claude_instant = [
+  {
+    "bedrock_region": "us-west-2", // Oregon
     "model_type": "claude",
     "model_id": "anthropic.claude-instant-v1",
     "maxOutputTokens": "8196"
   },
-]);
+  {
+    "bedrock_region": "us-east-1", // N.Virginia
+    "model_type": "claude",
+    "model_id": "anthropic.claude-instant-v1",
+    "maxOutputTokens": "8196"
+  },
+  {
+    "bedrock_region": "ap-northeast-1", // Tokyo
+    "model_type": "claude",
+    "model_id": "anthropic.claude-instant-v1",
+    "maxOutputTokens": "8196"
+  },    
+  {
+    "bedrock_region": "eu-central-1", // Europe (Frankfurt)
+    "model_type": "claude",
+    "model_id": "anthropic.claude-instant-v1",
+    "maxOutputTokens": "8196"
+    },
+];
+
+const claude2 = [
+  {
+    "bedrock_region": "us-west-2", // Oregon
+    "model_type": "claude",
+    "model_id": "anthropic.claude-v2:1",   
+    "maxOutputTokens": "8196"
+  },
+  {
+    "bedrock_region": "us-east-1", // N.Virginia
+    "model_type": "claude",
+    "model_id": "anthropic.claude-v2:1",
+    "maxOutputTokens": "8196"
+  }
+];
+
+const profile_of_LLMs = claude3_sonnet;
+
 const capabilities = JSON.stringify(["kendra", "opensearch", "faiss"]);
 
 export class CdkMultiRagChatbotStack extends cdk.Stack {
@@ -584,8 +628,7 @@ export class CdkMultiRagChatbotStack extends cdk.Stack {
         useParallelUpload: useParallelUpload,
         useParallelRAG: useParallelRAG,
         numberOfRelevantDocs: numberOfRelevantDocs,
-        number_of_LLMs:number_of_LLMs,
-        profile_of_LLMs:profile_of_LLMs,
+        profile_of_LLMs:JSON.stringify(profile_of_LLMs),
         capabilities: capabilities
       }
     });     
