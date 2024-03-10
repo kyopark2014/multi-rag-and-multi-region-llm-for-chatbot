@@ -1428,7 +1428,7 @@ def getResponse(connectionId, jsonBody):
                     
                 elif conv_type == 'qa':   # question & answering
                     print(f'rag_type: {rag_type}')
-                    msg, reference = get_answer_using_RAG(chat, text, conv_type, connectionId, requestId, bedrock_embedding, rag_type)
+                    msg, reference = get_answer_using_RAG(chat, text, conv_type, connectionId, requestId, bedrock_embedding)
                                                     
                 memory_chain.chat_memory.add_user_message(text)  # append new diaglog
                 memory_chain.chat_memory.add_ai_message(msg)
